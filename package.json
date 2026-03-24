@@ -1,0 +1,21 @@
+{
+  "name": "almts",
+  "version": "1.0.0",
+  "description": "Academic Learning Momentum Tracker System - Full Stack MERN Application",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "clean:frontend": "cd frontend && npm run clean",
+    "build": "cd frontend && npm run build",
+    "seed": "cd backend && node seedDatabase.js",
+    "start": "cd backend && node server.js"
+  },
+  "keywords": ["education", "mern", "gamification", "learning"],
+  "author": "ALMTS Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
