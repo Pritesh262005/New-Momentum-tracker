@@ -4,11 +4,15 @@
   "description": "Academic Learning Momentum Tracker System - Backend",
   "main": "server.js",
   "scripts": {
+    "build": "node -e \"console.log('No build step for backend')\"",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node seedDatabase.js",
     "add:students": "node addStudents.js",
     "fix:new-student-names": "node fixNewStudentNames.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [
     "education",

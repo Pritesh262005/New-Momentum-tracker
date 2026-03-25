@@ -1,7 +1,19 @@
 import axios from 'axios';
 
+const rawBase = import.meta.env.VITE_API_URL;
+if (import.meta.env.PROD && !rawBase) {
+  // Helps diagnose misconfigured Vercel env vars (VITE_* are build-time).
+  console.warn('VITE_API_URL is not set; falling back to same-origin /api');
+}
+const normalizedBase = rawBase ? rawBase.trim().replace(/\/+$/, '') : '';
+const resolvedBaseURL = normalizedBase
+  ? normalizedBase.endsWith('/api')
+    ? normalizedBase
+    : `${normalizedBase}/api`
+  : '/api';
+
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api'
+  baseURL: resolvedBaseURL
 });
 
 instance.interceptors.request.use(

@@ -267,6 +267,24 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
+## ☁️ Deploy (Vercel Frontend + Render Backend)
+
+### 1) Deploy Backend to Render
+- Create a **Web Service**
+- **Root Directory**: `backend`
+- **Build Command**: `npm ci`
+- **Start Command**: `npm start`
+- Add environment variables in Render (copy keys from `backend/.env.example`)
+  - Set `NODE_ENV=production`
+  - Set `FRONTEND_URL` to your Vercel site (no trailing slash)
+- After deploy, verify: `GET https://<render-service>.onrender.com/api/health`
+
+### 2) Deploy Frontend to Vercel
+- Import the repo in Vercel
+- **Root Directory**: `frontend`
+- Add env var: `VITE_API_URL=https://<render-service>.onrender.com`
+- Redeploy after changing env vars (Vite env vars are build-time).
+
 ## 🧪 Development Mode
 
 ```bash

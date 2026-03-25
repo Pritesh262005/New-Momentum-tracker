@@ -22,7 +22,7 @@ const envOrigins = [
   ...(process.env.FRONTEND_URLS || '').split(','),
   process.env.FRONTEND_URL || ''
 ]
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean);
 
 const allowedOrigins = new Set([
