@@ -12,6 +12,7 @@ const {
   getSubjects,
   createSubject
 } = require('../controllers/hodController');
+const studyController = require('../controllers/studyController');
 
 router.use(auth);
 router.use(roleCheck('HOD'));
@@ -24,5 +25,9 @@ router.get('/report', getDepartmentReport);
 router.get('/professors/compare', compareProfessors);
 router.get('/subjects', getSubjects);
 router.post('/subjects', createSubject);
+
+// Study notes upload
+router.get('/study/targets', studyController.getUploaderTargets);
+router.post('/study/materials', studyController.createMaterial);
 
 module.exports = router;

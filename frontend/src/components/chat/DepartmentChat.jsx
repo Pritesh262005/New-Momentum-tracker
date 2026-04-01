@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 
 const isTeacherLike = (role) => ['TEACHER', 'HOD', 'PROFESSOR'].includes(role);
+const isTempId = (id) => typeof id === 'string' && id.startsWith('tmp-');
 
 export default function DepartmentChat() {
   const toast = useToast();
@@ -29,6 +30,8 @@ export default function DepartmentChat() {
   const [newGroupName, setNewGroupName] = useState('');
 
   const listRef = useRef(null);
+  const inputRef = useRef(null);
+  const shouldAutoScrollRef = useRef(true);
 
   const selectedGroup = useMemo(() => groups.find((g) => g._id === selectedId) || null, [groups, selectedId]);
 
@@ -60,7 +63,11 @@ export default function DepartmentChat() {
     try {
       if (!silent) setLoadingMessages(true);
       const { data } = await api.get(`/chat/groups/${groupId}/messages?limit=100`);
-      setMessages(data?.success && Array.isArray(data.data) ? data.data : []);
+      const rows = data?.success && Array.isArray(data.data) ? data.data : [];
+      setMessages((prev) => {
+        const pending = prev.filter((m) => isTempId(m?._id));
+        return pending.length ? [...rows, ...pending] : rows;
+      });
     } catch (e) {
       if (!silent) toast.error('Failed to load messages');
       setMessages([]);
@@ -85,6 +92,7 @@ export default function DepartmentChat() {
 
   useEffect(() => {
     if (!listRef.current) return;
+    if (!shouldAutoScrollRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages.length]);
 
@@ -94,15 +102,34 @@ export default function DepartmentChat() {
     if (!selectedId) return;
     if (!content) return;
 
+    const tempId = `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const optimistic = {
+      _id: tempId,
+      sender: { _id: user?._id, name: user?.name, role: user?.role },
+      text: content,
+      createdAt: new Date().toISOString()
+    };
+
     try {
       setSending(true);
-      await api.post(`/chat/groups/${selectedId}/messages`, { text: content });
       setText('');
-      await fetchMessages(selectedId, { silent: true });
+      shouldAutoScrollRef.current = true;
+      setMessages((prev) => [...prev, optimistic]);
+
+      const { data } = await api.post(`/chat/groups/${selectedId}/messages`, { text: content });
+      const saved = data?.success ? data.data : null;
+
+      if (saved?._id) {
+        setMessages((prev) => prev.map((m) => (m._id === tempId ? saved : m)));
+      } else {
+        setMessages((prev) => prev.filter((m) => m._id !== tempId));
+      }
     } catch (err) {
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
       toast.error(err.response?.data?.message || 'Failed to send message');
     } finally {
       setSending(false);
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
@@ -131,6 +158,13 @@ export default function DepartmentChat() {
     if (aud === 'STUDENTS') return { text: 'Students', cls: 'badge badge-cyan' };
     if (aud === 'TEACHERS') return { text: 'Teachers', cls: 'badge badge-violet' };
     return { text: 'All', cls: 'badge badge-indigo' };
+  };
+
+  const updateAutoScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
   };
 
   return (
@@ -210,7 +244,7 @@ export default function DepartmentChat() {
           </div>
         ) : (
           <>
-            <div ref={listRef} className="flex-1 overflow-y-auto py-4 space-y-3">
+            <div ref={listRef} onScroll={updateAutoScroll} className="flex-1 overflow-y-auto py-4 space-y-3">
               {messages.length === 0 ? (
                 <EmptyState icon="🗨️" title="No messages" subtitle="Say hello to start the discussion" />
               ) : (
@@ -241,11 +275,11 @@ export default function DepartmentChat() {
 
             <form onSubmit={send} className="pt-3 border-t border-[var(--border)] flex gap-2">
               <input
+                ref={inputRef}
                 className="input flex-1"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Type a message..."
-                disabled={sending}
               />
               <button type="submit" className="btn btn-primary" disabled={sending || !text.trim()}>
                 {sending ? 'Sending...' : 'Send'}

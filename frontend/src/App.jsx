@@ -22,6 +22,7 @@ import StudentDashboard from './pages/student/StudentDashboard';
 import StudentTests from './pages/student/Tests';
 import StudentResults from './pages/student/Results';
 import StudentLeaderboard from './pages/student/Leaderboard';
+import StudentStudy from './pages/student/Study';
 import StudentProfile from './pages/student/Profile';
 import StudentNews from './pages/student/News';
 import StudentAssignments from './pages/student/Assignments';
@@ -37,6 +38,7 @@ import TeacherNews from './pages/teacher/News';
 import TeacherMarks from './pages/teacher/Marks';
 import TeacherAssignments from './pages/teacher/Assignments';
 import TeacherChat from './pages/teacher/Chat';
+import TeacherStudyNotes from './pages/teacher/StudyNotes';
 
 import HODDashboard from './pages/hod/Dashboard';
 import HODTeachers from './pages/hod/Teachers';
@@ -48,6 +50,7 @@ import HODProfile from './pages/hod/Profile';
 import HODNews from './pages/hod/News';
 import HODExams from './pages/hod/Exams';
 import HODChat from './pages/hod/Chat';
+import HODStudyNotes from './pages/hod/StudyNotes';
 
 function App() {
   return (
@@ -75,6 +78,7 @@ function App() {
                 <Route path="tests" element={<StudentTests />} />
                 <Route path="results" element={<StudentResults />} />
                 <Route path="assignments" element={<StudentAssignments />} />
+                <Route path="study" element={<StudentStudy />} />
                 <Route path="chat" element={<StudentChat />} />
                 <Route path="leaderboard" element={<StudentLeaderboard />} />
                 <Route path="profile" element={<StudentProfile />} />
@@ -90,6 +94,7 @@ function App() {
                 <Route path="marks" element={<TeacherMarks />} />
                 <Route path="students" element={<TeacherStudents />} />
                 <Route path="assignments" element={<TeacherAssignments />} />
+                <Route path="study-notes" element={<TeacherStudyNotes />} />
                 <Route path="chat" element={<TeacherChat />} />
                 <Route path="news" element={<TeacherNews />} />
                 <Route path="profile" element={<TeacherProfile />} />
@@ -100,6 +105,7 @@ function App() {
                 <Route path="teachers" element={<HODTeachers />} />
                 <Route path="students" element={<HODStudents />} />
                 <Route path="subjects" element={<HODSubjects />} />
+                <Route path="study-notes" element={<HODStudyNotes />} />
                 <Route path="tests" element={<HODTests />} />
                 <Route path="exams" element={<HODExams />} />
                 <Route path="news" element={<HODNews />} />

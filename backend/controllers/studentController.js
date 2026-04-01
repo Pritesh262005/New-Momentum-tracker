@@ -10,6 +10,50 @@ const ruleEngine = require('../services/ruleEngine');
 const gamificationService = require('../services/gamificationService');
 const { calculateMomentumScore } = require('../services/momentumService');
 
+const getCurrentWeekRange = () => {
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+  return { weekStart, weekEnd };
+};
+
+const chunk = (arr, size) => {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+};
+
+const buildLatestMomentumMap = async (studentIds) => {
+  const ids = (studentIds || []).map((id) => id.toString());
+  const latestByStudent = new Map();
+  if (ids.length === 0) return latestByStudent;
+
+  const scores = await MomentumScore.find({ student: { $in: studentIds } })
+    .sort({ weekStart: -1, createdAt: -1 })
+    .select('student score weekStart createdAt')
+    .lean();
+
+  for (const s of scores) {
+    const key = s.student.toString();
+    if (!latestByStudent.has(key)) latestByStudent.set(key, s.score ?? 0);
+  }
+
+  const missing = ids.filter((id) => !latestByStudent.has(id));
+  if (missing.length > 0) {
+    const { weekStart, weekEnd } = getCurrentWeekRange();
+    for (const batch of chunk(missing, 10)) {
+      const docs = await Promise.all(batch.map((id) => calculateMomentumScore(id, weekStart, weekEnd)));
+      docs.forEach((d, idx) => latestByStudent.set(batch[idx], d?.score ?? 0));
+    }
+  }
+
+  return latestByStudent;
+};
+
 const createStudyLog = async (req, res, next) => {
   try {
     const { subject, topic, duration, questionsAttempted, questionsCorrect, notes, date } = req.body;
@@ -244,45 +288,76 @@ const getBadges = async (req, res, next) => {
 const getLeaderboard = async (req, res, next) => {
   try {
     const { type } = req.query;
-    const user = await User.findById(req.user._id).populate('class department');
 
-    let filter = { role: 'STUDENT', isActive: true };
+    const scopeTypes = new Set(['class', 'department', 'institution']);
+    const metricTypes = new Set(['momentum', 'score', 'streak']);
 
-    if (type === 'class' && user.class) {
-      filter.class = user.class._id;
-    } else if (type === 'department' && user.department) {
-      filter.department = user.department._id;
+    const scopeType = scopeTypes.has(type) ? type : null;
+    const metricType = metricTypes.has(type) ? type : 'momentum';
+
+    const currentUser = scopeType ? await User.findById(req.user._id).populate('class department') : null;
+
+    const filter = { role: 'STUDENT', isActive: true };
+    if (scopeType === 'class' && currentUser?.class) {
+      filter.class = currentUser.class._id;
+    } else if (scopeType === 'department' && currentUser?.department) {
+      filter.department = currentUser.department._id;
     }
 
-    const students = await User.find(filter).select('name rollNumber xpPoints');
+    const students = await User.find(filter)
+      .populate('department', 'name')
+      .populate('class', 'name')
+      .select('_id name rollNumber xpPoints currentStreak department class')
+      .lean();
 
-    const leaderboard = await Promise.all(
-      students.map(async (student) => {
-        const score = await MomentumScore.findOne({ student: student._id }).sort({ weekStart: -1, createdAt: -1 });
-        return {
-          id: student._id,
-          name: student.name,
-          rollNumber: student.rollNumber,
-          xpPoints: student.xpPoints,
-          momentumScore: score?.score || 0
-        };
-      })
-    );
+    const studentIds = students.map((s) => s._id);
+    const latestByStudent = await buildLatestMomentumMap(studentIds);
 
-    leaderboard.sort((a, b) => b.momentumScore - a.momentumScore || b.xpPoints - a.xpPoints);
+    const attemptStats = await MCQAttempt.aggregate([
+      { $match: { student: { $in: studentIds }, status: 'SUBMITTED' } },
+      { $group: { _id: '$student', avgScore: { $avg: '$percentage' } } }
+    ]);
+    const avgScoreByStudent = new Map(attemptStats.map((a) => [a._id.toString(), a.avgScore ?? 0]));
 
-    if (type === 'institution') {
+    const leaderboard = students.map((student) => {
+      const id = student._id.toString();
+      const momentum = Math.round(((latestByStudent.get(id) || 0) * 100)) / 100;
+      const avgScore = Math.round(((avgScoreByStudent.get(id) || 0) * 100)) / 100;
+      const streak = student.currentStreak || 0;
+
+      return {
+        _id: student._id,
+        name: student.name,
+        rollNumber: student.rollNumber,
+        xpPoints: student.xpPoints || 0,
+        department: student.department || null,
+        class: student.class || null,
+        momentum,
+        avgScore,
+        streak
+      };
+    });
+
+    if (metricType === 'score') {
+      leaderboard.sort((a, b) => b.avgScore - a.avgScore || b.xpPoints - a.xpPoints);
+    } else if (metricType === 'streak') {
+      leaderboard.sort((a, b) => b.streak - a.streak || b.xpPoints - a.xpPoints);
+    } else {
+      leaderboard.sort((a, b) => b.momentum - a.momentum || b.xpPoints - a.xpPoints);
+    }
+
+    if (scopeType === 'institution') {
       const top10 = leaderboard.slice(0, 10);
-      const userRank = leaderboard.findIndex(s => s.id.toString() === req.user._id.toString());
-      
+      const userRank = leaderboard.findIndex((s) => s._id.toString() === req.user._id.toString());
+
       if (userRank >= 10) {
         return res.json({ success: true, data: { top10, userRank: userRank + 1, hidden: true } });
       }
-      
+
       return res.json({ success: true, data: { leaderboard: top10 } });
     }
 
-    res.json({ success: true, data: { leaderboard } });
+    return res.json({ success: true, data: { leaderboard } });
   } catch (error) {
     next(error);
   }

@@ -90,6 +90,7 @@ export default function Sidebar() {
         { to: '/hod/teachers', icon: <Users {...iconProps} />, label: 'Teachers' },
         { to: '/hod/students', icon: <GraduationCap {...iconProps} />, label: 'Students' },
         { to: '/hod/subjects', icon: <BookOpen {...iconProps} />, label: 'Subjects' },
+        { to: '/hod/study-notes', icon: <BookOpen {...iconProps} />, label: 'Study Notes' },
         { to: '/hod/tests', icon: <ClipboardList {...iconProps} />, label: 'Tests' },
         { to: '/hod/exams', icon: <FileText {...iconProps} />, label: 'Exams' },
         { to: '/hod/news', icon: <Newspaper {...iconProps} />, label: 'News' },
@@ -107,6 +108,7 @@ export default function Sidebar() {
         { to: '/teacher/marks', icon: <Calculator {...iconProps} />, label: 'Marks' },
         { to: '/teacher/students', icon: <GraduationCap {...iconProps} />, label: 'Students' },
         { to: '/teacher/assignments', icon: <Paperclip {...iconProps} />, label: 'Assignments' },
+        { to: '/teacher/study-notes', icon: <BookOpen {...iconProps} />, label: 'Study Notes' },
         { to: '/teacher/chat', icon: <MessageSquare {...iconProps} />, label: 'Chat' },
         { to: '/teacher/news', icon: <Newspaper {...iconProps} />, label: 'News' },
         { to: '/teacher/profile', icon: <User {...iconProps} />, label: 'Profile' },
@@ -115,6 +117,7 @@ export default function Sidebar() {
     STUDENT: [
       { group: 'LEARN', items: [
         { to: '/student', icon: <LayoutDashboard {...iconProps} />, label: 'Dashboard' },
+        { to: '/student/study', icon: <BookOpen {...iconProps} />, label: 'Study' },
         { to: '/student/tests', icon: <ClipboardList {...iconProps} />, label: 'Tests' },
         { to: '/student/results', icon: <BarChart3 {...iconProps} />, label: 'Results' },
         { to: '/student/assignments', icon: <Paperclip {...iconProps} />, label: 'Assignments' },
