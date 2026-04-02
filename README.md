@@ -19,7 +19,7 @@ Access the application at **http://localhost:5173**
 | Admin   | admin@almts.com              | Admin@123    |
 | HOD     | hod.cse@almts.com            | HOD@123      |
 | Teacher | teacher1@almts.com           | Teacher@123  |
-| Student | student1@student.almts.com   | Student@123  |
+| Student | arjun.mehta@student.almts.com| Student@123  |
 
 ## 📧 Gmail App Password Setup (Required for Email)
 

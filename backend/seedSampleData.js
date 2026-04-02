@@ -56,7 +56,7 @@ const seedSampleData = async () => {
       {
         name: 'Dr. Rajesh Kumar',
         email: 'hod.cse@almts.com',
-        password: await hashPassword('Hod@123'),
+        password: await hashPassword('HOD@123'),
         role: 'HOD',
         userId: 'HOD-CSE-001',
         department: departments[0]._id,
@@ -88,7 +88,7 @@ const seedSampleData = async () => {
       },
       {
         name: 'Arjun Mehta',
-        email: 'student1@almts.com',
+        email: 'arjun.mehta@student.almts.com',
         password: await hashPassword('Student@123'),
         role: 'STUDENT',
         userId: 'STU-001',
@@ -100,7 +100,7 @@ const seedSampleData = async () => {
       },
       {
         name: 'Ananya Iyer',
-        email: 'student2@almts.com',
+        email: 'ananya.iyer@student.almts.com',
         password: await hashPassword('Student@123'),
         role: 'STUDENT',
         userId: 'STU-002',
@@ -126,11 +126,11 @@ const seedSampleData = async () => {
     console.log('✅ Sample data seeded successfully!');
     console.log('\n📋 Login Credentials:');
     console.log('Admin: admin@almts.com / Admin@123');
-    console.log('HOD: hod.cse@almts.com / Hod@123');
+    console.log('HOD: hod.cse@almts.com / HOD@123');
     console.log('Teacher 1: teacher1@almts.com / Teacher@123');
     console.log('Teacher 2: teacher2@almts.com / Teacher@123');
-    console.log('Student 1: student1@almts.com / Student@123');
-    console.log('Student 2: student2@almts.com / Student@123');
+    console.log('Student 1: arjun.mehta@student.almts.com / Student@123');
+    console.log('Student 2: ananya.iyer@student.almts.com / Student@123');
     console.log('\n💡 All accounts are active and ready to use!');
 
     process.exit(0);

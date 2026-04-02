@@ -29,6 +29,18 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   (response) => {
+    // If Vercel/SPA rewrites route API calls to `index.html`, Axios receives HTML instead of JSON.
+    // Fail fast with a helpful message (prevents downstream `undefined[0]`-style crashes).
+    const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
+    if (typeof response.data === 'string') {
+      const trimmed = response.data.trimStart().toLowerCase();
+      const looksLikeHtml = trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html');
+      if (looksLikeHtml || contentType.includes('text/html')) {
+        throw new Error(
+          'API misconfigured: received HTML instead of JSON. Check Vercel rewrites/proxy and VITE_API_URL/BACKEND_URL env vars.'
+        );
+      }
+    }
     if (!response.data) response.data = { data: [] };
     return response;
   },

@@ -28,10 +28,20 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const { data } = await axios.post('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
-    setToken(data.token);
-    setUser(data.user);
-    return data.user;
+    const nextToken = data?.token;
+    const nextUser = data?.user;
+
+    if (!nextToken || !nextUser) {
+      const message =
+        data?.message ||
+        'Login failed: invalid server response (missing token/user). Check API base URL and proxy settings.';
+      throw new Error(message);
+    }
+
+    localStorage.setItem('token', nextToken);
+    setToken(nextToken);
+    setUser(nextUser);
+    return nextUser;
   };
 
   const logout = () => {
