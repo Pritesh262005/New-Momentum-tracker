@@ -18,11 +18,18 @@ if (dnsServers.length > 0) {
 
 // Security middleware
 app.use(helmet());
-const envOrigins = [
-  ...(process.env.FRONTEND_URLS || '').split(','),
-  process.env.FRONTEND_URL || ''
-]
-  .map((origin) => origin.trim().replace(/\/+$/, ''))
+const normalizeOrigin = (raw) => {
+  if (!raw) return '';
+  let s = String(raw).trim();
+  // Render/Vercel env vars sometimes get pasted with wrapping quotes; strip them.
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  return s.replace(/\/+$/, '');
+};
+
+const envOrigins = [...(process.env.FRONTEND_URLS || '').split(','), process.env.FRONTEND_URL || '']
+  .map(normalizeOrigin)
   .filter(Boolean);
 
 const allowedOrigins = new Set([
@@ -32,6 +39,8 @@ const allowedOrigins = new Set([
 ]);
 
 const isDev = process.env.NODE_ENV !== 'production';
+const allowVercelAppOrigins =
+  String(process.env.ALLOW_VERCEL_APP_ORIGINS || '').toLowerCase() === 'true';
 const devOriginRe =
   /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/;
 
@@ -39,8 +48,10 @@ const corsOptions = {
   origin: (origin, callback) => {
     // Allow same-origin/non-browser requests (no Origin header)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.has(origin)) return callback(null, true);
-    if (isDev && devOriginRe.test(origin)) return callback(null, true);
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalizedOrigin)) return callback(null, true);
+    if (allowVercelAppOrigins && normalizedOrigin.endsWith('.vercel.app')) return callback(null, true);
+    if (isDev && devOriginRe.test(normalizedOrigin)) return callback(null, true);
     // Do not throw (avoids 500); just omit CORS headers for disallowed origins.
     return callback(null, false);
   },
