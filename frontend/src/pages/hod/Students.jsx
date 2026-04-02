@@ -7,8 +7,10 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useToast } from '../../hooks/useToast';
 import { useDebounce } from '../../hooks/useDebounce';
 import api from '../../api/axios';
+import { useNavigate } from 'react-router-dom';
 
 export default function HODStudents() {
+  const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState([]);
@@ -35,7 +37,7 @@ export default function HODStudents() {
   const columns = [
     {
       key: 'student',
-      label: 'Student',
+      header: 'Student',
       render: (row) => (
         <div className="flex items-center gap-3">
           <Avatar name={row.name} size="sm" />
@@ -48,7 +50,7 @@ export default function HODStudents() {
     },
     {
       key: 'momentum',
-      label: 'Momentum',
+      header: 'Momentum',
       render: (row) => (
         <div className="flex items-center gap-2">
           <MomentumRing score={row.momentum || 0} size={40} />
@@ -56,8 +58,8 @@ export default function HODStudents() {
         </div>
       )
     },
-    { key: 'testsTaken', label: 'Tests', render: (row) => row.testsTaken || 0 },
-    { key: 'avgScore', label: 'Avg Score', render: (row) => `${row.avgScore || 0}%` }
+    { key: 'testsTaken', header: 'Tests', render: (row) => row.testsTaken || 0 },
+    { key: 'avgScore', header: 'Avg Score', render: (row) => `${row.avgScore || 0}%` }
   ];
 
   if (loading) return <LoadingSpinner fullscreen />;
@@ -80,7 +82,7 @@ export default function HODStudents() {
             className="input-base max-w-md"
           />
         </div>
-        <DataTable columns={columns} data={students} />
+        <DataTable columns={columns} data={students} onRowClick={(row) => navigate(`/hod/students/${row._id}`)} rowKey="_id" />
       </div>
     </div>
   );

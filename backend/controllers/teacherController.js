@@ -3,11 +3,13 @@ const Class = require('../models/Class');
 const MomentumScore = require('../models/MomentumScore');
 const MCQTest = require('../models/MCQTest');
 const MCQAttempt = require('../models/MCQAttempt');
+const ExamResult = require('../models/ExamResult');
 const Assignment = require('../models/Assignment');
 const AssignmentSubmission = require('../models/AssignmentSubmission');
 const Recommendation = require('../models/Recommendation');
 const Subject = require('../models/Subject');
 const { calculateMomentumScore } = require('../services/momentumService');
+const mongoose = require('mongoose');
 
 const getCurrentWeekRange = () => {
   const now = new Date();
@@ -169,10 +171,63 @@ const getClassStudents = async (req, res, next) => {
 const getStudentDetail = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).populate('badges');
+
+    const user = await User.findOne({ _id: id, role: 'STUDENT', isActive: true })
+      .populate('badges')
+      .populate('department', 'name code')
+      .populate('class', 'name');
+
+    if (!user) return res.status(404).json({ success: false, message: 'Student not found' });
+    if (user.department?._id?.toString() !== req.user.department?.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
     const scores = await MomentumScore.find({ student: id }).sort({ weekStart: -1, createdAt: -1 }).limit(10);
 
-    res.json({ success: true, data: { user, momentumHistory: scores } });
+    const studentObjectId = new mongoose.Types.ObjectId(id);
+
+    const mcqAgg = await MCQAttempt.aggregate([
+      { $match: { student: studentObjectId, status: 'SUBMITTED' } },
+      {
+        $group: {
+          _id: '$student',
+          testsTaken: { $sum: 1 },
+          avgScore: { $avg: '$percentage' }
+        }
+      }
+    ]);
+
+    const examAgg = await ExamResult.aggregate([
+      { $match: { student: studentObjectId, department: user.department?._id } },
+      {
+        $group: {
+          _id: '$student',
+          examsTaken: { $sum: 1 },
+          avgPercentage: { $avg: '$avg' }
+        }
+      }
+    ]);
+
+    const mcq = mcqAgg?.[0] || { testsTaken: 0, avgScore: 0 };
+    const exams = examAgg?.[0] || { examsTaken: 0, avgPercentage: 0 };
+
+    res.json({
+      success: true,
+      data: {
+        user,
+        momentumHistory: scores,
+        performance: {
+          mcq: {
+            testsTaken: mcq.testsTaken || 0,
+            avgScore: Math.round((mcq.avgScore || 0) * 100) / 100
+          },
+          exams: {
+            examsTaken: exams.examsTaken || 0,
+            avgPercentage: Math.round((exams.avgPercentage || 0) * 100) / 100
+          }
+        }
+      }
+    });
   } catch (error) {
     next(error);
   }

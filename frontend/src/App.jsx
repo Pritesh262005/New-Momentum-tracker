@@ -33,6 +33,7 @@ import TeacherTests from './pages/teacher/Tests';
 import TeacherCreateTest from './pages/teacher/CreateTest';
 import TeacherResults from './pages/teacher/Results';
 import TeacherStudents from './pages/teacher/Students';
+import TeacherStudentDetail from './pages/teacher/StudentDetail';
 import TeacherProfile from './pages/teacher/Profile';
 import TeacherNews from './pages/teacher/News';
 import TeacherMarks from './pages/teacher/Marks';
@@ -43,6 +44,7 @@ import TeacherStudyNotes from './pages/teacher/StudyNotes';
 import HODDashboard from './pages/hod/Dashboard';
 import HODTeachers from './pages/hod/Teachers';
 import HODStudents from './pages/hod/Students';
+import HODStudentDetail from './pages/hod/StudentDetail';
 import HODSubjects from './pages/hod/Subjects';
 import HODTests from './pages/hod/Tests';
 import HODAnalytics from './pages/hod/Analytics';
@@ -93,6 +95,7 @@ function App() {
                 <Route path="results" element={<TeacherResults />} />
                 <Route path="marks" element={<TeacherMarks />} />
                 <Route path="students" element={<TeacherStudents />} />
+                <Route path="students/:id" element={<TeacherStudentDetail />} />
                 <Route path="assignments" element={<TeacherAssignments />} />
                 <Route path="study-notes" element={<TeacherStudyNotes />} />
                 <Route path="chat" element={<TeacherChat />} />
@@ -104,6 +107,7 @@ function App() {
                 <Route index element={<HODDashboard />} />
                 <Route path="teachers" element={<HODTeachers />} />
                 <Route path="students" element={<HODStudents />} />
+                <Route path="students/:id" element={<HODStudentDetail />} />
                 <Route path="subjects" element={<HODSubjects />} />
                 <Route path="study-notes" element={<HODStudyNotes />} />
                 <Route path="tests" element={<HODTests />} />

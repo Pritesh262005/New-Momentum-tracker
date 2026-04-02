@@ -7,8 +7,10 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useToast } from '../../hooks/useToast';
 import { useDebounce } from '../../hooks/useDebounce';
 import api from '../../api/axios';
+import { useNavigate } from 'react-router-dom';
 
 export default function TeacherStudents() {
+  const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState([]);
@@ -81,7 +83,7 @@ export default function TeacherStudents() {
             className="input-base max-w-md"
           />
         </div>
-        <DataTable columns={columns} data={students} />
+        <DataTable columns={columns} data={students} onRowClick={(row) => navigate(`/teacher/students/${row._id}`)} rowKey="_id" />
       </div>
     </div>
   );

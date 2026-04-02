@@ -7,6 +7,7 @@ const {
   getTeachers,
   getTests,
   getStudents,
+  getStudentDetail,
   getDepartmentReport,
   compareProfessors,
   getSubjects,
@@ -21,6 +22,7 @@ router.get('/dashboard', getHODDashboard);
 router.get('/teachers', getTeachers);
 router.get('/tests', getTests);
 router.get('/students', getStudents);
+router.get('/students/:id', getStudentDetail);
 router.get('/report', getDepartmentReport);
 router.get('/professors/compare', compareProfessors);
 router.get('/subjects', getSubjects);
