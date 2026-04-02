@@ -29,14 +29,14 @@ export default function HODTests() {
   };
 
   const columns = [
-    { key: 'title', label: 'Title' },
-    { key: 'subject', label: 'Subject', render: (row) => row.subject?.name },
-    { key: 'teacher', label: 'Teacher', render: (row) => row.teacher?.name },
-    { key: 'startTime', label: 'Start Time', render: (row) => formatDateTime(row.startTime) },
-    { key: 'duration', label: 'Duration', render: (row) => `${row.duration} min` },
+    { key: 'title', header: 'Title' },
+    { key: 'subject', header: 'Subject', render: (row) => row.subject?.name },
+    { key: 'teacher', header: 'Teacher', render: (row) => row.teacher?.name },
+    { key: 'startTime', header: 'Start Time', render: (row) => formatDateTime(row.startTime) },
+    { key: 'duration', header: 'Duration', render: (row) => `${row.duration} min` },
     {
       key: 'status',
-      label: 'Status',
+      header: 'Status',
       render: (row) => {
         const now = new Date();
         const start = new Date(row.startTime);

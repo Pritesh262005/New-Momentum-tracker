@@ -34,7 +34,7 @@ export default function HODTeachers() {
   const columns = [
     {
       key: 'teacher',
-      label: 'Teacher',
+      header: 'Teacher',
       render: (row) => (
         <div className="flex items-center gap-3">
           <Avatar name={row.name} size="sm" />
@@ -45,9 +45,9 @@ export default function HODTeachers() {
         </div>
       )
     },
-    { key: 'subjects', label: 'Subjects', render: (row) => row.subjects?.length || 0 },
-    { key: 'tests', label: 'Tests Created', render: (row) => row.testsCreated || 0 },
-    { key: 'students', label: 'Students', render: (row) => row.studentCount || 0 }
+    { key: 'subjects', header: 'Subjects', render: (row) => row.subjects?.length || 0 },
+    { key: 'tests', header: 'Tests Created', render: (row) => row.testsCreated || 0 },
+    { key: 'students', header: 'Students', render: (row) => row.studentCount || 0 }
   ];
 
   if (loading) return <LoadingSpinner fullscreen />;
