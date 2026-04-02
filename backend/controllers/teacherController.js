@@ -130,7 +130,7 @@ const getClassStudents = async (req, res, next) => {
     }
     const users = await User.find(usersQuery)
       .populate('department', 'name')
-      .select('_id name email rollNumber department');
+      .select('_id name email rollNumber department semester');
 
     const latestByStudent = await buildLatestMomentumMap(studentIds);
 
@@ -154,6 +154,7 @@ const getClassStudents = async (req, res, next) => {
         email: u.email,
         rollNumber: u.rollNumber,
         department: u.department,
+        semester: u.semester ?? 1,
         momentum: Math.round(((latestByStudent.get(u._id.toString()) || 0) * 100)) / 100,
         testsTaken: stats?.testsTaken || 0,
         avgScore: Math.round((stats?.avgScore || 0) * 100) / 100
@@ -208,8 +209,21 @@ const getStudentDetail = async (req, res, next) => {
       }
     ]);
 
+    const semesterStart = user.semesterStartedAt ? new Date(user.semesterStartedAt) : new Date(0);
+    const semesterMomentumAgg = await MomentumScore.aggregate([
+      { $match: { student: studentObjectId, weekStart: { $gte: semesterStart } } },
+      {
+        $group: {
+          _id: '$student',
+          weeks: { $sum: 1 },
+          avgMomentum: { $avg: '$score' }
+        }
+      }
+    ]);
+
     const mcq = mcqAgg?.[0] || { testsTaken: 0, avgScore: 0 };
     const exams = examAgg?.[0] || { examsTaken: 0, avgPercentage: 0 };
+    const semesterMomentum = semesterMomentumAgg?.[0] || { weeks: 0, avgMomentum: 0 };
 
     res.json({
       success: true,
@@ -217,6 +231,12 @@ const getStudentDetail = async (req, res, next) => {
         user,
         momentumHistory: scores,
         performance: {
+          semester: {
+            current: user.semester ?? 1,
+            startedAt: user.semesterStartedAt || null,
+            weeks: semesterMomentum.weeks || 0,
+            avgMomentum: Math.round((semesterMomentum.avgMomentum || 0) * 100) / 100
+          },
           mcq: {
             testsTaken: mcq.testsTaken || 0,
             avgScore: Math.round((mcq.avgScore || 0) * 100) / 100

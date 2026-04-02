@@ -11,6 +11,13 @@ const userSchema = new mongoose.Schema({
   address: { type: String },
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
   class: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
+  semester: { type: Number, default: 1, min: 1, max: 8 },
+  semesterStartedAt: { type: Date, default: Date.now },
+  semesterHistory: [{
+    semester: { type: Number, min: 1, max: 8 },
+    startedAt: { type: Date },
+    endedAt: { type: Date }
+  }],
   isActive: { type: Boolean, default: true },
   isFirstLogin: { type: Boolean, default: true },
   isTempPassword: { type: Boolean, default: true },

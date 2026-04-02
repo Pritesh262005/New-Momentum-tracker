@@ -67,6 +67,9 @@ export default function StudentDetailView({ roleBase }) {
   const mcqTaken = perf.mcq?.testsTaken || 0;
   const examAvg = perf.exams?.avgPercentage || 0;
   const examsTaken = perf.exams?.examsTaken || 0;
+  const semesterCurrent = perf.semester?.current ?? user.semester ?? 1;
+  const semesterAvgMomentum = perf.semester?.avgMomentum ?? 0;
+  const semesterWeeks = perf.semester?.weeks ?? 0;
   const latestMomentum = payload.momentumHistory?.[0]?.score ?? 0;
 
   const columns = [
@@ -114,7 +117,7 @@ export default function StudentDetailView({ roleBase }) {
         <StatCard icon="⚡" label="Momentum" value={Math.round(latestMomentum)} color="indigo" />
         <StatCard icon="📝" label="MCQ Avg" value={`${mcqAvg}%`} sub={`${mcqTaken} tests`} color="cyan" />
         <StatCard icon="📚" label="Exam Avg" value={`${examAvg}%`} sub={`${examsTaken} exams`} color="violet" />
-        <StatCard icon="👤" label="Role" value={user.role || 'STUDENT'} color="green" />
+        <StatCard icon="🎓" label={`Semester S${semesterCurrent}`} value={Math.round(semesterAvgMomentum)} sub={`${semesterWeeks} weeks avg`} color="green" />
       </div>
 
       <div className="card p-6">
@@ -133,4 +136,3 @@ export default function StudentDetailView({ roleBase }) {
     </div>
   );
 }
-

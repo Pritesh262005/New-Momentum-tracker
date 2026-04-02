@@ -238,7 +238,12 @@ const getTests = async (req, res, next) => {
 const getStudents = async (req, res, next) => {
   try {
     const { search } = req.query;
+    const semester = req.query.semester !== undefined ? Number(req.query.semester) : undefined;
     const query = { role: 'STUDENT', department: req.user.department, isActive: true };
+
+    if (!Number.isNaN(semester) && semester !== undefined) {
+      query.semester = semester;
+    }
 
     if (search) {
       query.$or = [
@@ -248,7 +253,7 @@ const getStudents = async (req, res, next) => {
       ];
     }
 
-    const students = await User.find(query).select('name email rollNumber');
+    const students = await User.find(query).select('name email rollNumber semester');
     const ids = students.map((s) => s._id);
 
     const latestByStudent = await buildLatestMomentumMap(ids);
@@ -273,6 +278,7 @@ const getStudents = async (req, res, next) => {
         name: s.name,
         email: s.email,
         rollNumber: s.rollNumber,
+        semester: s.semester ?? 1,
         momentum: Math.round(((latestByStudent.get(s._id.toString()) || 0) * 100)) / 100,
         testsTaken: stats?.testsTaken || 0,
         avgScore: Math.round((stats?.avgScore || 0) * 100) / 100
@@ -324,8 +330,21 @@ const getStudentDetail = async (req, res, next) => {
       }
     ]);
 
+    const semesterStart = user.semesterStartedAt ? new Date(user.semesterStartedAt) : new Date(0);
+    const semesterMomentumAgg = await MomentumScore.aggregate([
+      { $match: { student: studentObjectId, weekStart: { $gte: semesterStart } } },
+      {
+        $group: {
+          _id: '$student',
+          weeks: { $sum: 1 },
+          avgMomentum: { $avg: '$score' }
+        }
+      }
+    ]);
+
     const mcq = mcqAgg?.[0] || { testsTaken: 0, avgScore: 0 };
     const exams = examAgg?.[0] || { examsTaken: 0, avgPercentage: 0 };
+    const semesterMomentum = semesterMomentumAgg?.[0] || { weeks: 0, avgMomentum: 0 };
 
     res.json({
       success: true,
@@ -333,6 +352,12 @@ const getStudentDetail = async (req, res, next) => {
         user,
         momentumHistory: scores,
         performance: {
+          semester: {
+            current: user.semester ?? 1,
+            startedAt: user.semesterStartedAt || null,
+            weeks: semesterMomentum.weeks || 0,
+            avgMomentum: Math.round((semesterMomentum.avgMomentum || 0) * 100) / 100
+          },
           mcq: {
             testsTaken: mcq.testsTaken || 0,
             avgScore: Math.round((mcq.avgScore || 0) * 100) / 100
@@ -349,6 +374,67 @@ const getStudentDetail = async (req, res, next) => {
   }
 };
 
+const promoteSemester = async (req, res, next) => {
+  try {
+    const fromSemester = Number(req.body.fromSemester);
+    const toSemester = Number(req.body.toSemester);
+    const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds : null;
+
+    if (!Number.isInteger(fromSemester) || fromSemester < 1 || fromSemester > 8) {
+      return res.status(400).json({ success: false, message: 'fromSemester must be between 1 and 8' });
+    }
+    if (!Number.isInteger(toSemester) || toSemester < 1 || toSemester > 8) {
+      return res.status(400).json({ success: false, message: 'toSemester must be between 1 and 8' });
+    }
+    if (toSemester === fromSemester) {
+      return res.status(400).json({ success: false, message: 'toSemester must be different from fromSemester' });
+    }
+
+    let filter = {
+      role: 'STUDENT',
+      department: req.user.department,
+      isActive: true,
+      semester: fromSemester
+    };
+
+    if (studentIds && studentIds.length > 0) {
+      const validIds = studentIds.filter((x) => mongoose.Types.ObjectId.isValid(x));
+      if (validIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'studentIds are invalid' });
+      }
+      filter = { ...filter, _id: { $in: validIds } };
+    }
+
+    const students = await User.find(filter).select('_id semester semesterStartedAt createdAt');
+    if (!students || students.length === 0) {
+      return res.json({ success: true, data: { promoted: 0 } });
+    }
+
+    const now = new Date();
+
+    for (const s of students) {
+      const startedAt = s.semesterStartedAt || s.createdAt || null;
+      await User.updateOne(
+        { _id: s._id },
+        {
+          $set: { semester: toSemester, semesterStartedAt: now },
+          $push: {
+            semesterHistory: {
+              semester: fromSemester,
+              startedAt,
+              endedAt: now
+            }
+          }
+        }
+      );
+    }
+
+    res.json({ success: true, data: { promoted: students.length } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getHODDashboard,
   getTeachers,
@@ -358,5 +444,6 @@ module.exports = {
   createSubject,
   getTests,
   getStudents,
-  getStudentDetail
+  getStudentDetail,
+  promoteSemester
 };

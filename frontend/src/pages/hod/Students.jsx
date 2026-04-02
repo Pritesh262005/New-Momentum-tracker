@@ -48,6 +48,7 @@ export default function HODStudents() {
         </div>
       )
     },
+    { key: 'semester', header: 'Semester', render: (row) => `S${row.semester ?? 1}` },
     {
       key: 'momentum',
       header: 'Momentum',
@@ -70,6 +71,11 @@ export default function HODStudents() {
         title="Students"
         subtitle="Manage department students"
         breadcrumbs={[{ label: 'Dashboard', path: '/hod' }, { label: 'Students' }]}
+        actions={[
+          <button key="upgrade" className="btn-secondary" onClick={() => navigate('/hod/semester-upgrade')}>
+            Semester Upgrade
+          </button>
+        ]}
       />
 
       <div className="card p-6">

@@ -53,6 +53,7 @@ import HODNews from './pages/hod/News';
 import HODExams from './pages/hod/Exams';
 import HODChat from './pages/hod/Chat';
 import HODStudyNotes from './pages/hod/StudyNotes';
+import HODSemesterUpgrade from './pages/hod/SemesterUpgrade';
 
 function App() {
   return (
@@ -108,6 +109,7 @@ function App() {
                 <Route path="teachers" element={<HODTeachers />} />
                 <Route path="students" element={<HODStudents />} />
                 <Route path="students/:id" element={<HODStudentDetail />} />
+                <Route path="semester-upgrade" element={<HODSemesterUpgrade />} />
                 <Route path="subjects" element={<HODSubjects />} />
                 <Route path="study-notes" element={<HODStudyNotes />} />
                 <Route path="tests" element={<HODTests />} />

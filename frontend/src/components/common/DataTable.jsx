@@ -1,7 +1,18 @@
 import EmptyState from './EmptyState';
 import SkeletonCard from './SkeletonCard';
 
-export default function DataTable({ columns = [], data = [], loading, onRowClick, emptyState, rowKey = 'id' }) {
+export default function DataTable({
+  columns = [],
+  data = [],
+  loading,
+  onRowClick,
+  emptyState,
+  rowKey = 'id',
+  selectable = false,
+  selectedRowIds,
+  onToggleRow,
+  onToggleAll,
+}) {
   try {
     if (loading) {
       return (
@@ -19,11 +30,37 @@ export default function DataTable({ columns = [], data = [], loading, onRowClick
       return <EmptyState title="No columns" subtitle="Table configuration missing" />;
     }
 
+    const allRows = Array.isArray(data) ? data : [];
+    const ids = allRows.map((r) => r?.[rowKey]).filter(Boolean);
+    const selectedSet =
+      selectedRowIds instanceof Set
+        ? selectedRowIds
+        : new Set(Array.isArray(selectedRowIds) ? selectedRowIds : []);
+
+    const selectedCount = ids.reduce((acc, id) => acc + (selectedSet.has(id) ? 1 : 0), 0);
+    const allSelected = ids.length > 0 && selectedCount === ids.length;
+    const someSelected = selectedCount > 0 && !allSelected;
+
     return (
       <div className="overflow-x-auto rounded-[16px]" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full border-collapse">
           <thead className="sticky top-0" style={{ background: 'var(--bg-hover)' }}>
             <tr>
+              {selectable && (
+                <th
+                  className="px-4 py-3 text-left"
+                  style={{ borderBottom: '1px solid var(--border)', width: 46 }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={(e) => onToggleAll?.(e.target.checked)}
+                  />
+                </th>
+              )}
               {columns.map((col, i) => (
                 <th
                   key={i}
@@ -41,7 +78,7 @@ export default function DataTable({ columns = [], data = [], loading, onRowClick
             </tr>
           </thead>
           <tbody>
-            {data.map((row, i) => (
+            {allRows.map((row, i) => (
               <tr
                 key={row[rowKey] || i}
                 className="transition-colors"
@@ -53,6 +90,16 @@ export default function DataTable({ columns = [], data = [], loading, onRowClick
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 onClick={() => onRowClick?.(row)}
               >
+                {selectable && (
+                  <td className="px-4 py-3.5 text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSet.has(row?.[rowKey])}
+                      onChange={(e) => onToggleRow?.(row, e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </td>
+                )}
                 {columns.map((col, j) => (
                   <td
                     key={j}

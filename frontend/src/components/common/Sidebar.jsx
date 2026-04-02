@@ -89,6 +89,7 @@ export default function Sidebar() {
         { to: '/hod', icon: <LayoutDashboard {...iconProps} />, label: 'Dashboard' },
         { to: '/hod/teachers', icon: <Users {...iconProps} />, label: 'Teachers' },
         { to: '/hod/students', icon: <GraduationCap {...iconProps} />, label: 'Students' },
+        { to: '/hod/semester-upgrade', icon: <PlusCircle {...iconProps} />, label: 'Semester Upgrade' },
         { to: '/hod/subjects', icon: <BookOpen {...iconProps} />, label: 'Subjects' },
         { to: '/hod/study-notes', icon: <BookOpen {...iconProps} />, label: 'Study Notes' },
         { to: '/hod/tests', icon: <ClipboardList {...iconProps} />, label: 'Tests' },

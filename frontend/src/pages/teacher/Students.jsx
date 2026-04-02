@@ -49,6 +49,7 @@ export default function TeacherStudents() {
       )
     },
     { key: 'department', header: 'Department', render: (row) => row.department?.name || '-' },
+    { key: 'semester', header: 'Semester', render: (row) => `S${row.semester ?? 1}` },
     {
       key: 'momentum',
       header: 'Momentum',

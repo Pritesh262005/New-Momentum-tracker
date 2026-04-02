@@ -156,6 +156,8 @@ const seedDatabase = async () => {
         rollNumber: rollNum,
         department: cseDept._id,
         class: cseClassA._id,
+        semester: cseClassA.semester,
+        semesterStartedAt: new Date(),
         isFirstLogin: false,
         isTempPassword: false
       });

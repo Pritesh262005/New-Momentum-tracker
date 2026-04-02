@@ -58,8 +58,9 @@ const createUser = async (req, res, next) => {
 
     let resolvedDepartment = department;
     let resolvedClassId = classId;
+    let resolvedSemester;
     if (role === 'STUDENT' && classId) {
-      const klass = await Class.findById(classId).select('_id department');
+      const klass = await Class.findById(classId).select('_id department semester');
       if (!klass) {
         return res.status(400).json({ success: false, message: 'Invalid class' });
       }
@@ -68,6 +69,7 @@ const createUser = async (req, res, next) => {
         return res.status(400).json({ success: false, message: 'Class does not belong to the selected department' });
       }
       resolvedClassId = klass._id;
+      if (klass.semester !== undefined && klass.semester !== null) resolvedSemester = klass.semester;
     }
 
     const tempPassword = generateTempPassword();
@@ -89,6 +91,8 @@ const createUser = async (req, res, next) => {
       payload.rollNumber = rollNumber;
       payload.department = resolvedDepartment;
       if (resolvedClassId) payload.class = resolvedClassId;
+      if (resolvedSemester !== undefined) payload.semester = resolvedSemester;
+      payload.semesterStartedAt = new Date();
     } else if (['HOD', 'TEACHER'].includes(role)) {
       payload.department = department;
       if (rollNumber) payload.rollNumber = rollNumber;
