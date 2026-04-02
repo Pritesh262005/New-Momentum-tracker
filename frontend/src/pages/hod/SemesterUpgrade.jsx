@@ -180,6 +180,10 @@ export default function SemesterUpgrade() {
           </div>
         </div>
 
+        <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+          Showing {students.length} student(s) in S{fromSemester}. If you seeded earlier and semester wasn’t stored, use S1 (it includes older students).
+        </div>
+
         <DataTable
           columns={columns}
           data={students}
@@ -193,4 +197,3 @@ export default function SemesterUpgrade() {
     </div>
   );
 }
-

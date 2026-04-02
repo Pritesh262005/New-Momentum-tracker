@@ -239,19 +239,31 @@ const getStudents = async (req, res, next) => {
   try {
     const { search } = req.query;
     const semester = req.query.semester !== undefined ? Number(req.query.semester) : undefined;
+
     const query = { role: 'STUDENT', department: req.user.department, isActive: true };
+    const and = [];
 
     if (!Number.isNaN(semester) && semester !== undefined) {
-      query.semester = semester;
+      // Backward compatible: older seeded students may not have `semester` set.
+      // Treat "missing semester" as S1 for filtering.
+      if (semester === 1) {
+        and.push({ $or: [{ semester: 1 }, { semester: { $exists: false } }] });
+      } else {
+        and.push({ semester });
+      }
     }
 
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { rollNumber: { $regex: search, $options: 'i' } }
-      ];
+      and.push({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { rollNumber: { $regex: search, $options: 'i' } }
+        ]
+      });
     }
+
+    if (and.length > 0) query.$and = and;
 
     const students = await User.find(query).select('name email rollNumber semester');
     const ids = students.map((s) => s._id);
@@ -390,20 +402,29 @@ const promoteSemester = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'toSemester must be different from fromSemester' });
     }
 
-    let filter = {
+    const filter = {
       role: 'STUDENT',
       department: req.user.department,
-      isActive: true,
-      semester: fromSemester
+      isActive: true
     };
+
+    // Backward compatible: missing semester is treated as S1.
+    const and = [];
+    if (fromSemester === 1) {
+      and.push({ $or: [{ semester: 1 }, { semester: { $exists: false } }] });
+    } else {
+      and.push({ semester: fromSemester });
+    }
 
     if (studentIds && studentIds.length > 0) {
       const validIds = studentIds.filter((x) => mongoose.Types.ObjectId.isValid(x));
       if (validIds.length === 0) {
         return res.status(400).json({ success: false, message: 'studentIds are invalid' });
       }
-      filter = { ...filter, _id: { $in: validIds } };
+      and.push({ _id: { $in: validIds } });
     }
+
+    if (and.length > 0) filter.$and = and;
 
     const students = await User.find(filter).select('_id semester semesterStartedAt createdAt');
     if (!students || students.length === 0) {
