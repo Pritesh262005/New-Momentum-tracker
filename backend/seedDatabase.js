@@ -17,6 +17,9 @@ const { checkAndAwardBadges } = require('./services/gamificationService');
 
 configureDns();
 
+const args = new Set(process.argv.slice(2));
+const seedIfEmpty = args.has('--if-empty');
+
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
@@ -35,6 +38,14 @@ const hashPassword = async (password) => {
 const seedDatabase = async () => {
   try {
     await connectDB();
+
+    if (seedIfEmpty) {
+      const userCount = await User.countDocuments();
+      if (userCount > 0) {
+        console.log(`Seed skipped (--if-empty): database already has ${userCount} user(s).`);
+        process.exit(0);
+      }
+    }
 
     console.log('🗑️  Clearing existing data...');
     await User.deleteMany({});

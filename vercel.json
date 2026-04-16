@@ -1,8 +1,14 @@
 {
+  "installCommand": "cd frontend && npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "frontend/dist",
   "functions": {
     "api/[...path].js": {
       "runtime": "nodejs20.x"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
-

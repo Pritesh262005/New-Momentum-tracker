@@ -10,6 +10,7 @@
     "clean:frontend": "cd frontend && npm run clean",
     "build": "cd frontend && npm run build",
     "seed": "cd backend && node seedDatabase.js",
+    "seed:if-empty": "cd backend && npm run seed:if-empty",
     "start": "cd backend && node server.js"
   },
   "keywords": ["education", "mern", "gamification", "learning"],

@@ -129,8 +129,19 @@ const PORT = process.env.PORT || 5000;
 
 async function start() {
   try {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+    const server = app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+    server.on('error', (err) => {
+      if (err && err.code === 'EADDRINUSE') {
+        console.error(
+          `Port ${PORT} is already in use. Stop the other process, or set PORT to a different value (e.g. PORT=5001).`
+        );
+      } else {
+        console.error(`Server listen error: ${err?.message || err}`);
+      }
+      process.exit(1);
     });
 
     // Keep trying to connect in the background (useful when Atlas/TLS is transiently failing).
@@ -138,12 +149,12 @@ async function start() {
       try {
         await connectDB();
       } catch (error) {
-        console.error(`❌ MongoDB connect failed: ${error.message}`);
+        console.error(`MongoDB connect failed: ${error.message}`);
         await new Promise((r) => setTimeout(r, 5000));
       }
     }
   } catch (error) {
-    console.error(`❌ Failed to start server: ${error.message}`);
+    console.error(`Failed to start server: ${error.message}`);
     process.exit(1);
   }
 }

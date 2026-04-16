@@ -277,7 +277,9 @@ chmod +x deploy.sh
 - Add environment variables in Render (copy keys from `backend/.env.example`)
   - Set `NODE_ENV=production`
   - Set `FRONTEND_URL` to your Vercel site (no trailing slash)
+  - (Optional) If you use Vercel preview URLs: set `ALLOW_VERCEL_APP_ORIGINS=true`
 - After deploy, verify: `GET https://<render-service>.onrender.com/api/health`
+- Seed initial data once (safe): `cd backend && npm run seed:if-empty`
 
 ### 2) Deploy Frontend to Vercel
 - Import the repo in Vercel
