@@ -479,7 +479,13 @@ const getStudentTests = async (req, res, next) => {
         .lean();
 
       const attemptedTestIds = [...new Set(attempts.map((a) => a.test?.toString()).filter(Boolean))];
-      const testsDocs = await MCQTest.find({ ...visibility, _id: { $in: attemptedTestIds } })
+      
+      // For completed tests, we relax visibility rules so promoted students can still see history.
+      // We only strictly enforce the department to ensure correct context.
+      const testsDocs = await MCQTest.find({ 
+        _id: { $in: attemptedTestIds },
+        department: req.user.department 
+      })
         .populate('subject', 'name code')
         .populate('createdBy', 'name')
         .sort({ startDateTime: -1 })
@@ -489,11 +495,14 @@ const getStudentTests = async (req, res, next) => {
         const key = attempt.test?.toString();
         if (key && !latestAttemptByTest.has(key)) latestAttemptByTest.set(key, attempt);
       }
-      tests = testsDocs.map((test) => ({
-        ...test,
-        attemptStatus: 'SUBMITTED',
-        latestAttempt: latestAttemptByTest.get(test._id.toString()) || null
-      }));
+      tests = testsDocs.map((test) => {
+        const latest = latestAttemptByTest.get(test._id.toString()) || null;
+        return {
+          ...test,
+          attemptStatus: latest?.status || 'SUBMITTED',
+          latestAttempt: latest
+        };
+      });
     } else {
       const testsDocs = await MCQTest.find({
         ...visibility,
