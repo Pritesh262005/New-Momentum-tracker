@@ -118,7 +118,11 @@ export default function TeacherTests() {
         <ConfirmModal
           isOpen={showDelete}
           title="Delete Test"
-          message={`Delete ${selected?.title}?`}
+          message={
+            selected?.attemptCount > 0 
+              ? `Warning: This test has ${selected.attemptCount} student attempts. Deleting it will permanently remove all student results and progress. Are you sure you want to delete "${selected?.title}"?`
+              : `Are you sure you want to delete "${selected?.title}"?`
+          }
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => {
