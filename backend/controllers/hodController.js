@@ -11,6 +11,43 @@ const Recommendation = require('../models/Recommendation');
 const Subject = require('../models/Subject');
 const { calculateMomentumScore } = require('../services/momentumService');
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+
+const syllabusStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'uploads/syllabuses';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const sanitized = String(file.originalname || 'syllabus.pdf').replace(/[^a-zA-Z0-9.]/g, '_');
+    cb(null, `syllabus_${req.user?._id || 'user'}_${Date.now()}_${sanitized}`);
+  }
+});
+
+const syllabusUpload = multer({
+  storage: syllabusStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf' || String(file.originalname || '').toLowerCase().endsWith('.pdf')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files allowed for syllabus'));
+    }
+  }
+});
+
+const semesterToYear = (semester) => Math.ceil(Number(semester) / 2);
+const clampYear = (year) => {
+  const value = Number(year);
+  return Number.isInteger(value) && value >= 1 && value <= 4 ? value : null;
+};
+const clampSemester = (semester) => {
+  const value = Number(semester);
+  return Number.isInteger(value) && value >= 1 && value <= 8 ? value : null;
+};
 
 const getCurrentWeekRange = () => {
   const now = new Date();
@@ -79,6 +116,121 @@ const getHODDashboard = async (req, res, next) => {
         avgScore: Math.round(avgScore),
         completionRate,
         avgAttendance
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getHODAnalytics = async (req, res, next) => {
+  try {
+    const departmentId = req.user.department;
+    const requestedYear = clampYear(req.query.year);
+    if (req.query.year && !requestedYear) {
+      return res.status(400).json({ success: false, message: 'Invalid year' });
+    }
+    const students = await User.find({
+      role: 'STUDENT',
+      department: departmentId,
+      isActive: true,
+      ...(requestedYear ? { year: requestedYear } : {})
+    }).select('_id name email');
+
+    const studentIds = students.map((student) => student._id);
+    const tests = await MCQTest.find({
+      department: departmentId,
+      ...(requestedYear ? { targetYear: requestedYear } : {})
+    }).select('_id subject isPublished');
+    const testIds = tests.map((test) => test._id);
+    const subjectIds = [...new Set(tests.map((test) => test.subject?.toString()).filter(Boolean))];
+    const subjects = await Subject.find({ _id: { $in: subjectIds } }).select('_id name');
+    const subjectNameById = new Map(subjects.map((subject) => [subject._id.toString(), subject.name]));
+
+    const basePayload = {
+      totalTests: tests.filter((test) => test.isPublished).length,
+      avgScore: 0,
+      passRate: 0,
+      completionRate: 0,
+      topPerformers: [],
+      subjectStats: []
+    };
+
+    if (studentIds.length === 0 || testIds.length === 0) {
+      return res.json({ success: true, data: basePayload });
+    }
+
+    const submittedAttempts = await MCQAttempt.find({
+      test: { $in: testIds },
+      student: { $in: studentIds },
+      status: 'SUBMITTED'
+    })
+      .select('student test percentage isPassed')
+      .lean();
+
+    if (submittedAttempts.length === 0) {
+      return res.json({ success: true, data: basePayload });
+    }
+
+    const avgScore =
+      submittedAttempts.reduce((sum, attempt) => sum + (attempt.percentage || 0), 0) / submittedAttempts.length;
+    const passRate =
+      (submittedAttempts.filter((attempt) => attempt.isPassed).length / submittedAttempts.length) * 100;
+
+    const attemptedStudents = new Set(submittedAttempts.map((attempt) => attempt.student.toString()));
+    const completionRate = (attemptedStudents.size / studentIds.length) * 100;
+
+    const performerMap = new Map();
+    submittedAttempts.forEach((attempt) => {
+      const key = attempt.student.toString();
+      const current = performerMap.get(key) || { total: 0, count: 0 };
+      current.total += attempt.percentage || 0;
+      current.count += 1;
+      performerMap.set(key, current);
+    });
+
+    const studentById = new Map(students.map((student) => [student._id.toString(), student]));
+    const topPerformers = [...performerMap.entries()]
+      .map(([studentId, stats]) => {
+        const student = studentById.get(studentId);
+        return {
+          name: student?.name || 'Unknown Student',
+          email: student?.email || '',
+          avgScore: Math.round((stats.total / stats.count) * 100) / 100
+        };
+      })
+      .sort((a, b) => b.avgScore - a.avgScore)
+      .slice(0, 5);
+
+    const testById = new Map(tests.map((test) => [test._id.toString(), test]));
+    const subjectStatsMap = new Map();
+    submittedAttempts.forEach((attempt) => {
+      const test = testById.get(attempt.test.toString());
+      const subjectId = test?.subject?.toString();
+      if (!subjectId) return;
+      const current = subjectStatsMap.get(subjectId) || { total: 0, count: 0 };
+      current.total += attempt.percentage || 0;
+      current.count += 1;
+      subjectStatsMap.set(subjectId, current);
+    });
+
+    const subjectStats = [...subjectStatsMap.entries()]
+      .map(([subjectId, stats]) => ({
+        name: subjectNameById.get(subjectId) || 'Unknown Subject',
+        avgScore: Math.round((stats.total / stats.count) * 100) / 100
+      }))
+      .sort((a, b) => b.avgScore - a.avgScore);
+
+    res.json({
+      success: true,
+      data: {
+        year: requestedYear,
+        totalTests: basePayload.totalTests,
+        avgScore: Math.round(avgScore * 100) / 100,
+        passRate: Math.round(passRate * 100) / 100,
+        completionRate: Math.round(completionRate * 100) / 100,
+        topPerformers,
+        subjectStats
       }
     });
   } catch (error) {
@@ -187,7 +339,26 @@ const compareProfessors = async (req, res, next) => {
 
 const getSubjects = async (req, res, next) => {
   try {
-    const subjects = await Subject.find({ department: req.user.department }).sort({ createdAt: -1 });
+    const { year, semester } = req.query;
+    const filter = { department: req.user.department };
+
+    if (year) {
+      const numYear = Number(year);
+      if (!Number.isNaN(numYear)) {
+        filter.year = numYear;
+      }
+    }
+    if (semester) {
+      const numSemester = Number(semester);
+      if (!Number.isNaN(numSemester)) {
+        filter.semester = numSemester;
+      }
+    }
+
+    const subjects = await Subject.find(filter)
+      .populate('teachers', 'name email role')
+      .sort({ year: 1, semester: 1, name: 1 })
+      .lean();
     res.json({ success: true, data: subjects });
   } catch (error) {
     next(error);
@@ -196,16 +367,112 @@ const getSubjects = async (req, res, next) => {
 
 const createSubject = async (req, res, next) => {
   try {
-    const { name, code, description, credits, semester } = req.body;
-    const subject = await Subject.create({
-      name,
-      code,
-      description,
-      credits,
-      semester,
+    const { name, code, description, credits, year, semester } = req.body;
+    let teachers = [];
+
+    if (req.body.teachers) {
+      try {
+        const parsed = JSON.parse(req.body.teachers);
+        teachers = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        teachers = (typeof req.body.teachers === 'string') ? req.body.teachers.split(',') : [];
+      }
+    }
+
+    const existing = await Subject.findOne({
+      code: code.toUpperCase(),
       department: req.user.department
     });
+
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Subject with this code already exists in your department' });
+    }
+
+    const subjectData = {
+      name,
+      code: code.toUpperCase(),
+      department: req.user.department,
+      description,
+      credits: parseInt(credits) || 3,
+      year: parseInt(year),
+      semester: parseInt(semester),
+      teachers
+    };
+
+    if (req.file) {
+      subjectData.syllabusFileName = req.file.originalname;
+      subjectData.syllabusFilePath = req.file.path;
+    }
+
+    const subject = await Subject.create(subjectData);
+
     res.status(201).json({ success: true, data: subject });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Subject code must be unique' });
+    }
+    next(error);
+  }
+};
+
+const updateSubject = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, code, description, credits, year, semester } = req.body;
+    
+    let teachers = undefined;
+    if (req.body.teachers) {
+      try {
+        const parsed = JSON.parse(req.body.teachers);
+        teachers = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        teachers = (typeof req.body.teachers === 'string') ? req.body.teachers.split(',') : [];
+      }
+    }
+
+    const subject = await Subject.findOne({ _id: id, department: req.user.department });
+    if (!subject) {
+      return res.status(404).json({ success: false, message: 'Subject not found' });
+    }
+
+    if (name) subject.name = name;
+    if (code) subject.code = code.toUpperCase();
+    if (description !== undefined) subject.description = description;
+    if (credits) subject.credits = parseInt(credits) || subject.credits;
+    if (year) subject.year = parseInt(year);
+    if (semester) subject.semester = parseInt(semester);
+    if (teachers !== undefined) subject.teachers = teachers;
+
+    if (req.file) {
+      subject.syllabusFileName = req.file.originalname;
+      subject.syllabusFilePath = req.file.path;
+    }
+
+    await subject.save();
+    res.json({ success: true, data: subject });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Subject code must be unique' });
+    }
+    next(error);
+  }
+};
+
+const getSubjectSyllabus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const subject = await Subject.findOne({ _id: id, department: req.user.department });
+    if (!subject) {
+      return res.status(404).json({ success: false, message: 'Subject not found' });
+    }
+    if (!subject.syllabusFilePath) {
+      return res.status(404).json({ success: false, message: 'Syllabus PDF not available' });
+    }
+
+    const absPath = path.resolve(subject.syllabusFilePath);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${subject.syllabusFileName || 'syllabus.pdf'}"`);
+    res.sendFile(absPath);
   } catch (error) {
     next(error);
   }
@@ -218,7 +485,6 @@ const getTests = async (req, res, next) => {
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
 
-    // Shape for existing frontend (HODTests.jsx)
     const rows = tests.map((t) => ({
       _id: t._id,
       title: t.title,
@@ -238,10 +504,15 @@ const getTests = async (req, res, next) => {
 const getStudents = async (req, res, next) => {
   try {
     const { search } = req.query;
-    const semester = req.query.semester !== undefined ? Number(req.query.semester) : undefined;
+    const year = (req.query.year !== undefined && req.query.year !== '') ? Number(req.query.year) : undefined;
+    const semester = (req.query.semester !== undefined && req.query.semester !== '') ? Number(req.query.semester) : undefined;
 
     const query = { role: 'STUDENT', department: req.user.department, isActive: true };
     const and = [];
+
+    if (!Number.isNaN(year) && year !== undefined) {
+      and.push({ year });
+    }
 
     if (!Number.isNaN(semester) && semester !== undefined) {
       // Backward compatible: older seeded students may not have `semester` set.
@@ -265,7 +536,7 @@ const getStudents = async (req, res, next) => {
 
     if (and.length > 0) query.$and = and;
 
-    const students = await User.find(query).select('name email rollNumber semester');
+    const students = await User.find(query).select('name email rollNumber year semester');
     const ids = students.map((s) => s._id);
 
     const latestByStudent = await buildLatestMomentumMap(ids);
@@ -290,6 +561,7 @@ const getStudents = async (req, res, next) => {
         name: s.name,
         email: s.email,
         rollNumber: s.rollNumber,
+        year: s.year ?? semesterToYear(s.semester ?? 1),
         semester: s.semester ?? 1,
         momentum: Math.round(((latestByStudent.get(s._id.toString()) || 0) * 100)) / 100,
         testsTaken: stats?.testsTaken || 0,
@@ -365,6 +637,7 @@ const getStudentDetail = async (req, res, next) => {
         momentumHistory: scores,
         performance: {
           semester: {
+            year: user.year ?? semesterToYear(user.semester ?? 1),
             current: user.semester ?? 1,
             startedAt: user.semesterStartedAt || null,
             weeks: semesterMomentum.weeks || 0,
@@ -438,7 +711,7 @@ const promoteSemester = async (req, res, next) => {
       await User.updateOne(
         { _id: s._id },
         {
-          $set: { semester: toSemester, semesterStartedAt: now },
+          $set: { semester: toSemester, year: semesterToYear(toSemester), semesterStartedAt: now },
           $push: {
             semesterHistory: {
               semester: fromSemester,
@@ -456,8 +729,70 @@ const promoteSemester = async (req, res, next) => {
   }
 };
 
+const getLeaderboard = async (req, res, next) => {
+  try {
+    const { metric = 'momentum', year } = req.query;
+
+    const filter = { role: 'STUDENT', isActive: true, department: req.user.department };
+    if (year && year !== 'all') {
+      const numYear = Number(year);
+      if (!Number.isNaN(numYear)) {
+        filter.year = numYear;
+      }
+    }
+
+    const students = await User.find(filter)
+      .populate('department', 'name')
+      .populate('class', 'name')
+      .select('_id name rollNumber xpPoints currentStreak department class year semester')
+      .lean();
+
+    const studentIds = students.map((s) => s._id);
+    const latestByStudent = await buildLatestMomentumMap(studentIds);
+
+    const attemptStats = await MCQAttempt.aggregate([
+      { $match: { student: { $in: studentIds }, status: 'SUBMITTED' } },
+      { $group: { _id: '$student', avgScore: { $avg: '$percentage' } } }
+    ]);
+    const avgScoreByStudent = new Map(attemptStats.map((a) => [a._id.toString(), a.avgScore ?? 0]));
+
+    const leaderboard = students.map((student) => {
+      const id = student._id.toString();
+      const momentum = Math.round(((latestByStudent.get(id) || 0) * 100)) / 100;
+      const avgScore = Math.round(((avgScoreByStudent.get(id) || 0) * 100)) / 100;
+      const streak = student.currentStreak || 0;
+
+      return {
+        _id: student._id,
+        name: student.name,
+        rollNumber: student.rollNumber,
+        xpPoints: student.xpPoints || 0,
+        department: student.department || null,
+        class: student.class || null,
+        year: student.year ?? semesterToYear(student.semester ?? 1),
+        momentum,
+        avgScore,
+        streak
+      };
+    });
+
+    if (metric === 'score') {
+      leaderboard.sort((a, b) => b.avgScore - a.avgScore || b.xpPoints - a.xpPoints);
+    } else if (metric === 'streak') {
+      leaderboard.sort((a, b) => b.streak - a.streak || b.xpPoints - a.xpPoints);
+    } else {
+      leaderboard.sort((a, b) => b.momentum - a.momentum || b.xpPoints - a.xpPoints);
+    }
+
+    return res.json({ success: true, data: { leaderboard } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getHODDashboard,
+  getHODAnalytics,
   getTeachers,
   getDepartmentReport,
   compareProfessors,
@@ -466,5 +801,9 @@ module.exports = {
   getTests,
   getStudents,
   getStudentDetail,
-  promoteSemester
+  promoteSemester,
+  getLeaderboard,
+  syllabusUpload,
+  updateSubject,
+  getSubjectSyllabus
 };

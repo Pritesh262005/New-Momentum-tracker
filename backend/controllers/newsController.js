@@ -4,6 +4,14 @@ const User = require('../models/User');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { moderateNewsComment } = require('../services/newsModerationService');
+
+const isPathInside = (filePath, baseDir) => {
+  if (!filePath || !baseDir) return false;
+  const base = path.resolve(baseDir) + path.sep;
+  const target = path.resolve(filePath);
+  return target.startsWith(base);
+};
 
 const newsAttachmentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -249,9 +257,13 @@ exports.getNewsAttachment = async (req, res, next) => {
 
     const att = (news.attachments || [])[index];
     if (!att?.filePath) return res.status(404).json({ success: false, message: 'Attachment not found' });
+    if (!isPathInside(att.filePath, 'uploads/news')) {
+      return res.status(400).json({ success: false, message: 'Invalid attachment path' });
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${att.fileName || 'attachment.pdf'}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.sendFile(path.resolve(att.filePath));
   } catch (error) {
     next(error);
@@ -286,10 +298,22 @@ exports.addComment = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Comments not allowed' });
     }
 
+    const content = String(req.body?.content ?? '').trim();
+    if (!content) return res.status(400).json({ success: false, message: 'Comment cannot be empty' });
+    if (content.length > 500) return res.status(400).json({ success: false, message: 'Comment is too long (max 500 chars)' });
+
+    const moderation = moderateNewsComment(content);
+    if (!moderation.allowed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment blocked by moderation. Please keep it respectful.'
+      });
+    }
+
     const comment = await NewsComment.create({
       news: req.params.id,
       author: req.user._id,
-      content: req.body.content
+      content
     });
 
     const populated = await NewsComment.findById(comment._id).populate('author', 'name role');

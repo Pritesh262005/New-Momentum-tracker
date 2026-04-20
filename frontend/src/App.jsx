@@ -14,6 +14,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminDepartments from './pages/admin/AdminDepartments';
+import AdminSubjects from './pages/admin/AdminSubjects';
 import AdminNews from './pages/admin/News';
 import AdminSettings from './pages/admin/Settings';
 import AdminAnalytics from './pages/admin/Analytics';
@@ -27,9 +28,11 @@ import StudentProfile from './pages/student/Profile';
 import StudentNews from './pages/student/News';
 import StudentAssignments from './pages/student/Assignments';
 import StudentChat from './pages/student/Chat';
+import StudentSubjects from './pages/student/Subjects';
 
 import TeacherDashboard from './pages/teacher/Dashboard';
 import TeacherTests from './pages/teacher/Tests';
+import TeacherSubjects from './pages/teacher/Subjects';
 import TeacherCreateTest from './pages/teacher/CreateTest';
 import TeacherResults from './pages/teacher/Results';
 import TeacherStudents from './pages/teacher/Students';
@@ -40,6 +43,7 @@ import TeacherMarks from './pages/teacher/Marks';
 import TeacherAssignments from './pages/teacher/Assignments';
 import TeacherChat from './pages/teacher/Chat';
 import TeacherStudyNotes from './pages/teacher/StudyNotes';
+import TeacherLeaderboard from './pages/teacher/Leaderboard';
 
 import HODDashboard from './pages/hod/Dashboard';
 import HODTeachers from './pages/hod/Teachers';
@@ -54,6 +58,7 @@ import HODExams from './pages/hod/Exams';
 import HODChat from './pages/hod/Chat';
 import HODStudyNotes from './pages/hod/StudyNotes';
 import HODSemesterUpgrade from './pages/hod/SemesterUpgrade';
+import HODLeaderboard from './pages/hod/Leaderboard';
 
 function App() {
   return (
@@ -71,6 +76,7 @@ function App() {
                 <Route index element={<AdminDashboard />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="departments" element={<AdminDepartments />} />
+                <Route path="subjects" element={<AdminSubjects />} />
                 <Route path="news" element={<AdminNews />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="analytics" element={<AdminAnalytics />} />
@@ -82,6 +88,7 @@ function App() {
                 <Route path="results" element={<StudentResults />} />
                 <Route path="assignments" element={<StudentAssignments />} />
                 <Route path="study" element={<StudentStudy />} />
+                <Route path="subjects" element={<StudentSubjects />} />
                 <Route path="chat" element={<StudentChat />} />
                 <Route path="leaderboard" element={<StudentLeaderboard />} />
                 <Route path="profile" element={<StudentProfile />} />
@@ -90,9 +97,11 @@ function App() {
 
               <Route path="/teacher" element={<ProtectedRoute><RoleRoute allowedRoles={['TEACHER']}><AppLayout /></RoleRoute></ProtectedRoute>}>
                 <Route index element={<TeacherDashboard />} />
-                <Route path="tests" element={<TeacherTests />} />
+                <Route path="subjects" element={<TeacherSubjects />} />
+            <Route path="tests" element={<TeacherTests />} />
                 <Route path="tests/create" element={<TeacherCreateTest />} />
                 <Route path="tests/:id" element={<Navigate to="/teacher/tests" replace />} />
+                <Route path="leaderboard" element={<TeacherLeaderboard />} />
                 <Route path="results" element={<TeacherResults />} />
                 <Route path="marks" element={<TeacherMarks />} />
                 <Route path="students" element={<TeacherStudents />} />
@@ -115,6 +124,7 @@ function App() {
                 <Route path="tests" element={<HODTests />} />
                 <Route path="exams" element={<HODExams />} />
                 <Route path="news" element={<HODNews />} />
+                <Route path="leaderboard" element={<HODLeaderboard />} />
                 <Route path="analytics" element={<HODAnalytics />} />
                 <Route path="chat" element={<HODChat />} />
                 <Route path="profile" element={<HODProfile />} />

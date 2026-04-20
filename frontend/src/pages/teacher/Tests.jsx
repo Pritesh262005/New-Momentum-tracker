@@ -38,16 +38,17 @@ export default function TeacherTests() {
       await api.delete(`/teacher/tests/${selected._id}`);
       toast.success('Test deleted');
       setShowDelete(false);
+      setSelected(null);
       fetchTests();
     } catch (error) {
-      toast.error('Failed to delete test');
+      toast.error(error.response?.data?.message || 'Failed to delete test');
     }
   };
 
   const getTestStatus = (test) => {
     const now = new Date();
-    const start = new Date(test.startTime);
-    const end = new Date(start.getTime() + test.duration * 60000);
+    const start = new Date(test.startDateTime);
+    const end = new Date(test.endDateTime);
     if (now < start) return { label: 'Upcoming', color: 'amber' };
     if (now > end) return { label: 'Ended', color: 'gray' };
     return { label: 'Active', color: 'green' };
@@ -59,31 +60,27 @@ export default function TeacherTests() {
     <div className="page-container">
       <PageHeader
         title="Tests"
-        subtitle="Manage your tests"
+        subtitle="Manage tests created for your department"
         breadcrumbs={[{ label: 'Dashboard', path: '/teacher' }, { label: 'Tests' }]}
         actions={<button onClick={() => navigate('/teacher/tests/create')} className="btn-primary">+ Create Test</button>}
       />
 
-      {!tests || tests.length === 0 ? (
+      {tests.length === 0 ? (
         <EmptyState
-          icon="📝"
+          icon="Tests"
           title="No tests yet"
-          subtitle="Create your first test"
-          action={
-            <button onClick={() => navigate('/teacher/tests/create')} className="btn btn-primary">
-              Create Test
-            </button>
-          }
+          subtitle="Create your first Unit 1 / Unit 2 test"
+          action={<button onClick={() => navigate('/teacher/tests/create')} className="btn btn-primary">Create Test</button>}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tests && tests.map((test) => {
+          {tests.map((test) => {
             const status = getTestStatus(test);
             return (
               <div key={test._id} className="card p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-2xl">
-                    📝
+                    T
                   </div>
                   <span className={`badge badge-${status.color}`}>{status.label}</span>
                 </div>
@@ -91,12 +88,20 @@ export default function TeacherTests() {
                 <p className="text-sm text-[var(--text-secondary)] mb-4">{test.subject?.name}</p>
                 <div className="space-y-2 text-sm mb-4">
                   <div className="flex items-center gap-2 text-[var(--text-muted)]">
-                    <span>⏰</span>
-                    <span>{formatDateTime(test.startTime)}</span>
+                    <span>Y</span>
+                    <span>Year {test.targetYear || Math.ceil((test.targetSemester || 1) / 2)} / Semester {test.targetSemester || '-'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-[var(--text-muted)]">
-                    <span>👥</span>
-                    <span>{test.submissions || 0} submissions</span>
+                    <span>At</span>
+                    <span>{formatDateTime(test.startDateTime)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                    <span>Q</span>
+                    <span>{test.questions?.length || 0} questions</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                    <span>A</span>
+                    <span>{test.attemptCount || 0} attempts</span>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -109,15 +114,19 @@ export default function TeacherTests() {
         </div>
       )}
 
-      {showDelete && (
+      {showDelete ? (
         <ConfirmModal
+          isOpen={showDelete}
           title="Delete Test"
           message={`Delete ${selected?.title}?`}
           variant="danger"
           onConfirm={handleDelete}
-          onCancel={() => setShowDelete(false)}
+          onCancel={() => {
+            setShowDelete(false);
+            setSelected(null);
+          }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

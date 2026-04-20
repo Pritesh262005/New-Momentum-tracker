@@ -3,9 +3,25 @@ import Sidebar from './Sidebar';
 
 export default function AppLayout() {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+    <div
+      className="app-layout"
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: 'transparent'
+      }}
+    >
       <Sidebar />
-      <main style={{ marginLeft: '240px', flex: 1, minHeight: '100vh', overflowY: 'auto', overflowX: 'hidden' }}>
+      <main
+        className="main-content"
+        style={{
+          marginLeft: '240px',
+          width: 'calc(100% - 240px)',
+          minHeight: '100vh',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}
+      >
         <Outlet />
       </main>
     </div>

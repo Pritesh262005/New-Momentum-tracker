@@ -33,32 +33,30 @@ export default function Sidebar() {
   const NavItem = ({ to, icon, label, badge }) => (
     <NavLink
       to={to}
-      className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2.5 rounded-[10px] transition-all relative ${
-          isActive
-            ? 'text-white'
-            : 'text-indigo-200/50 hover:text-indigo-100 hover:bg-indigo-900/30'
-        }`
-      }
+      className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] transition-all relative group"
       style={({ isActive }) =>
         isActive
           ? {
-              background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.15))',
-              border: '1px solid rgba(99,102,241,0.3)',
-              boxShadow: 'inset 0 0 20px rgba(99,102,241,0.1)',
+              color: 'var(--sidebar-active-text)',
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.22), rgba(20,184,166,0.12))',
+              border: '1px solid rgba(59,130,246,0.24)',
+              boxShadow: 'inset 0 0 20px rgba(59,130,246,0.08)'
             }
-          : {}
+          : {
+              color: 'var(--sidebar-text)',
+              border: '1px solid transparent'
+            }
       }
     >
       {({ isActive }) => (
         <>
           {isActive && (
-            <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-indigo-500 rounded-r" />
+            <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: 'var(--primary)' }} />
           )}
-          {icon ? <span className="flex-shrink-0">{icon}</span> : null}
+          <span className="flex-shrink-0 transition-transform group-hover:scale-110">{icon}</span>
           <span className="text-sm font-semibold">{label}</span>
           {badge && (
-            <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+            <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse ${
               badge.color === 'red' ? 'bg-rose-500 text-white' :
               badge.color === 'amber' ? 'bg-amber-500 text-black' :
               'bg-cyan-500 text-black'
@@ -77,12 +75,13 @@ export default function Sidebar() {
         { to: '/admin', icon: <LayoutDashboard {...iconProps} />, label: 'Dashboard' },
         { to: '/admin/users', icon: <Users {...iconProps} />, label: 'Users' },
         { to: '/admin/departments', icon: <Building2 {...iconProps} />, label: 'Departments' },
+        { to: '/admin/subjects', icon: <BookOpen {...iconProps} />, label: 'Subjects' }
       ]},
       { group: 'CONTENT', items: [
         { to: '/admin/news', icon: <Newspaper {...iconProps} />, label: 'News' },
         { to: '/admin/analytics', icon: <BarChart3 {...iconProps} />, label: 'Analytics' },
-        { to: '/admin/settings', icon: <Settings {...iconProps} />, label: 'Settings' },
-      ]},
+        { to: '/admin/settings', icon: <Settings {...iconProps} />, label: 'Settings' }
+      ]}
     ],
     HOD: [
       { group: 'OVERVIEW', items: [
@@ -95,16 +94,19 @@ export default function Sidebar() {
         { to: '/hod/tests', icon: <ClipboardList {...iconProps} />, label: 'Tests' },
         { to: '/hod/exams', icon: <FileText {...iconProps} />, label: 'Exams' },
         { to: '/hod/news', icon: <Newspaper {...iconProps} />, label: 'News' },
+        { to: '/hod/leaderboard', icon: <Trophy {...iconProps} />, label: 'Leaderboard' },
         { to: '/hod/chat', icon: <MessageSquare {...iconProps} />, label: 'Chat' },
         { to: '/hod/analytics', icon: <BarChart3 {...iconProps} />, label: 'Analytics' },
-        { to: '/hod/profile', icon: <User {...iconProps} />, label: 'Profile' },
-      ]},
+        { to: '/hod/profile', icon: <User {...iconProps} />, label: 'Profile' }
+      ]}
     ],
     TEACHER: [
       { group: 'TEACHING', items: [
         { to: '/teacher', icon: <LayoutDashboard {...iconProps} />, label: 'Dashboard' },
         { to: '/teacher/tests', icon: <ClipboardList {...iconProps} />, label: 'Tests' },
         { to: '/teacher/tests/create', icon: <PlusCircle {...iconProps} />, label: 'Create Test' },
+        { to: '/teacher/subjects', icon: <BookOpen {...iconProps} />, label: 'Subjects' },
+        { to: '/teacher/leaderboard', icon: <Trophy {...iconProps} />, label: 'Leaderboard' },
         { to: '/teacher/results', icon: <BarChart3 {...iconProps} />, label: 'Results' },
         { to: '/teacher/marks', icon: <Calculator {...iconProps} />, label: 'Marks' },
         { to: '/teacher/students', icon: <GraduationCap {...iconProps} />, label: 'Students' },
@@ -112,62 +114,73 @@ export default function Sidebar() {
         { to: '/teacher/study-notes', icon: <BookOpen {...iconProps} />, label: 'Study Notes' },
         { to: '/teacher/chat', icon: <MessageSquare {...iconProps} />, label: 'Chat' },
         { to: '/teacher/news', icon: <Newspaper {...iconProps} />, label: 'News' },
-        { to: '/teacher/profile', icon: <User {...iconProps} />, label: 'Profile' },
-      ]},
+        { to: '/teacher/profile', icon: <User {...iconProps} />, label: 'Profile' }
+      ]}
     ],
     STUDENT: [
       { group: 'LEARN', items: [
         { to: '/student', icon: <LayoutDashboard {...iconProps} />, label: 'Dashboard' },
+        { to: '/student/subjects', icon: <BookOpen {...iconProps} />, label: 'Subjects' },
         { to: '/student/study', icon: <BookOpen {...iconProps} />, label: 'Study' },
         { to: '/student/tests', icon: <ClipboardList {...iconProps} />, label: 'Tests' },
         { to: '/student/results', icon: <BarChart3 {...iconProps} />, label: 'Results' },
         { to: '/student/assignments', icon: <Paperclip {...iconProps} />, label: 'Assignments' },
         { to: '/student/chat', icon: <MessageSquare {...iconProps} />, label: 'Chat' },
-        { to: '/student/news', icon: <Newspaper {...iconProps} />, label: 'News' },
+        { to: '/student/news', icon: <Newspaper {...iconProps} />, label: 'News' }
       ]},
       { group: 'COMPETE', items: [
         { to: '/student/leaderboard', icon: <Trophy {...iconProps} />, label: 'Leaderboard' },
-        { to: '/student/profile', icon: <User {...iconProps} />, label: 'Profile' },
-      ]},
-    ],
+        { to: '/student/profile', icon: <User {...iconProps} />, label: 'Profile' }
+      ]}
+    ]
   };
 
   const nav = navConfig[user?.role] || [];
 
   return (
-    <div className="sidebar fixed left-0 top-0 w-60 h-screen flex flex-col z-50"
-      style={{ background: '#060a18', borderRight: '1px solid rgba(99,102,241,0.1)' }}>
-      
+    <div
+      className="sidebar fixed left-0 top-0 w-60 h-screen flex flex-col z-50 transition-all"
+      style={{
+        background: 'var(--sidebar-panel)',
+        borderRight: '1px solid var(--sidebar-border)',
+        boxShadow: 'var(--sidebar-shadow)'
+      }}
+    >
       <div className="px-5 pt-6 pb-5">
-        <div className="flex items-center gap-2">
-          <img src="/almts-mark.svg" alt="ALMTS" className="w-9 h-9" />
+        <div className="flex items-center gap-2 group cursor-pointer">
+          <img src="/almts-mark.svg" alt="ALMTS" className="w-9 h-9 transition-transform group-hover:scale-110" />
           <span className="gradient-text font-bold text-xl">ALMTS</span>
         </div>
-        <p className="text-indigo-300/60 text-xs mt-1">Learning Platform</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--sidebar-muted)' }}>Learning Platform</p>
       </div>
 
-      <div style={{ height: 1, background: 'rgba(99,102,241,0.15)' }} />
+      <div style={{ height: 1, background: 'var(--sidebar-divider)' }} />
 
-      <div className="mx-3 my-4 p-3 rounded-xl"
-        style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+      <div
+        className="mx-3 my-4 p-3 rounded-xl transition-all hover:shadow-lg"
+        style={{ background: 'var(--sidebar-user-bg)', border: '1px solid var(--sidebar-user-border)' }}
+      >
         <div className="flex items-center gap-3">
           <Avatar name={user?.name} size="md" />
           <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm truncate">{user?.name}</p>
+            <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-strong)' }}>{user?.name}</p>
             <RoleBadge role={user?.role} size="xs" />
           </div>
         </div>
         {user?.role === 'STUDENT' && user?.xpPoints > 0 && (
-          <div className="mt-2 text-amber-300 text-xs font-mono">⚡ {user.xpPoints} XP</div>
+          <div className="mt-2 text-xs font-mono" style={{ color: 'var(--sidebar-accent)' }}>XP {user.xpPoints}</div>
         )}
       </div>
 
-      <div style={{ height: 1, background: 'rgba(99,102,241,0.15)' }} />
+      <div style={{ height: 1, background: 'var(--sidebar-divider)' }} />
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
         {nav.map((section, i) => (
           <div key={i}>
-            <div className="text-indigo-400/40 text-[10px] uppercase tracking-wider px-3 pt-3 pb-1">
+            <div
+              className="text-[10px] uppercase tracking-wider px-3 pt-3 pb-1 font-bold"
+              style={{ color: 'var(--sidebar-section)' }}
+            >
               {section.group}
             </div>
             {section.items.map((item, j) => (
@@ -179,18 +192,32 @@ export default function Sidebar() {
 
       <div className="px-3 pb-4 mt-auto space-y-1">
         {user?.role === 'STUDENT' && user?.currentStreak > 0 && (
-          <div className="text-amber-300 text-xs font-bold px-3 py-2 rounded-[10px] w-full text-center"
-            style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.25)' }}>
-            🔥 {user.currentStreak} Day Streak
+          <div
+            className="text-xs font-bold px-3 py-2 rounded-[10px] w-full text-center transition-all hover:shadow-lg"
+            style={{
+              color: 'var(--sidebar-accent)',
+              background: 'rgba(245,158,11,0.15)',
+              border: '1px solid rgba(245,158,11,0.25)'
+            }}
+          >
+            {user.currentStreak} Day Streak
           </div>
         )}
-        
+
         <button
           onClick={toggleTheme}
-          className="w-full py-2.5 px-3 rounded-[10px] flex items-center gap-2 text-sm font-medium text-indigo-200/60 transition-colors"
-          style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99,102,241,0.15)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
+          className="w-full py-2.5 px-3 rounded-[10px] flex items-center gap-2 text-sm font-medium transition-all"
+          style={{
+            background: 'var(--sidebar-user-bg)',
+            border: '1px solid var(--sidebar-user-border)',
+            color: 'var(--sidebar-text)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--sidebar-hover)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--sidebar-user-bg)';
+          }}
         >
           <span className="flex-shrink-0">{theme === 'dark' ? <Sun {...iconProps} /> : <Moon {...iconProps} />}</span>
           <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
@@ -198,9 +225,14 @@ export default function Sidebar() {
 
         <button
           onClick={logout}
-          className="w-full py-2.5 px-3 rounded-[10px] flex items-center gap-2 text-sm font-semibold text-rose-400/70 hover:text-rose-400 transition-colors"
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          className="w-full py-2.5 px-3 rounded-[10px] flex items-center gap-2 text-sm font-semibold transition-all"
+          style={{ color: 'var(--danger)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+          }}
         >
           <span className="flex-shrink-0"><LogOut {...iconProps} /></span>
           <span>Sign Out</span>

@@ -5,7 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useToast } from '../../hooks/useToast';
 import { formatDateTime, getGrade } from '../../utils/formatters';
-import { downloadPdf } from '../../utils/download';
+import { downloadFile, downloadPdf } from '../../utils/download';
 import api from '../../api/axios';
 
 export default function StudentAssignments() {
@@ -60,7 +60,7 @@ export default function StudentAssignments() {
     <div className="page-container">
       <PageHeader
         title="Assignments"
-        subtitle="Download assignments and upload your PDF submissions"
+        subtitle="Download assignments and upload your submissions"
         breadcrumbs={[{ label: 'Dashboard', path: '/student' }, { label: 'Assignments' }]}
       />
 
@@ -71,10 +71,10 @@ export default function StudentAssignments() {
           {sorted.map((a) => {
             const status = a.submissionStatus || 'NOT_SUBMITTED';
             const badge =
-              status === 'GRADED' ? { text: 'Graded', cls: 'bg-green-100 text-green-800' } :
-              status === 'RETURNED' ? { text: 'Returned', cls: 'bg-amber-100 text-amber-900' } :
-              status === 'SUBMITTED' ? { text: 'Submitted', cls: 'bg-cyan-100 text-cyan-900' } :
-              { text: 'Not submitted', cls: 'bg-gray-100 text-gray-800' };
+              status === 'GRADED' ? { text: 'Graded', cls: 'badge badge-green' } :
+              status === 'RETURNED' ? { text: 'Returned', cls: 'badge badge-amber' } :
+              status === 'SUBMITTED' ? { text: 'Submitted', cls: 'badge badge-cyan' } :
+              { text: 'Not submitted', cls: 'badge badge-gray' };
 
             const grade = a.grade?.percentage !== undefined ? getGrade(a.grade.percentage) : null;
 
@@ -86,8 +86,13 @@ export default function StudentAssignments() {
                     <p className="text-sm mt-1 text-[var(--text-secondary)]">{a.description}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-[var(--text-muted)]">
                       <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">{a.subject}</span>
+                      {a.targetYear && a.targetSemester ? (
+                        <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">
+                          Year {a.targetYear} / Sem {a.targetSemester}
+                        </span>
+                      ) : null}
                       <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">Due {formatDateTime(a.dueDate)}</span>
-                      <span className={`px-2 py-1 rounded-full ${badge.cls}`}>{badge.text}</span>
+                      <span className={badge.cls}>{badge.text}</span>
                       {a.grade && (
                         <span className={`px-2 py-1 rounded-full badge badge-${grade?.color || 'gray'}`}>
                           {a.grade.percentage?.toFixed ? a.grade.percentage.toFixed(2) : a.grade.percentage}% ({grade?.label})
@@ -137,7 +142,8 @@ function SubmitModal({ assignment, onClose, onSuccess }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!file) return toast.warning('Select a PDF file');
+    const isCode = assignment?.submissionType === 'CODE_JS';
+    if (!file) return toast.warning(isCode ? 'Select a .js file' : 'Select a PDF file');
 
     try {
       setSaving(true);
@@ -160,12 +166,21 @@ function SubmitModal({ assignment, onClose, onSuccess }) {
     }
   };
 
+  const isCode = assignment?.submissionType === 'CODE_JS';
+  const accept = isCode ? '.js,text/javascript,application/javascript' : 'application/pdf';
+  const modalTitle = isCode ? 'Upload Submission (.js)' : 'Upload Submission (PDF)';
+
   return (
-    <Modal isOpen={true} onClose={onClose} title="Upload Submission (PDF)" size="md">
+    <Modal isOpen={true} onClose={onClose} title={modalTitle} size="md">
       <form onSubmit={submit} className="space-y-4">
         <div className="form-group">
-          <label className="block text-sm font-medium mb-2 text-[var(--text-primary)]">PDF File</label>
-          <input type="file" accept="application/pdf" className="input" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
+          <label className="block text-sm font-medium mb-2 text-[var(--text-primary)]">{isCode ? 'JavaScript File' : 'PDF File'}</label>
+          <input type="file" accept={accept} className="input" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
+          {isCode && (
+            <p className="text-xs mt-1 text-[var(--text-muted)]">
+              Export <span className="font-mono">{`module.exports.${assignment.codeSpec?.functionName || 'solve'} = (input) => output`}</span>.
+            </p>
+          )}
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
@@ -198,7 +213,12 @@ function DetailModal({ assignment, onClose }) {
   const downloadSubmission = async () => {
     try {
       if (!submission?._id) return;
-      await downloadPdf(`/assignments/submissions/${submission._id}/file`, submission.submissionFile?.fileName || 'submission.pdf');
+      const name = submission.submissionFile?.fileName || 'submission';
+      if (String(name).toLowerCase().endsWith('.pdf')) {
+        await downloadPdf(`/assignments/submissions/${submission._id}/file`, name);
+      } else {
+        await downloadFile(`/assignments/submissions/${submission._id}/file`, name, 'text/plain');
+      }
     } catch (e) {
       toast.error('Failed to download submission');
     }
@@ -219,14 +239,21 @@ function DetailModal({ assignment, onClose }) {
           </div>
 
           {!submission ? (
-            <EmptyState icon="📭" title="No submission yet" subtitle="Upload your PDF to submit" />
+            <EmptyState icon="📭" title="No submission yet" subtitle="Upload your submission to submit" />
           ) : (
             <div className="card p-5 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-[var(--text-primary)]">Your Submission</div>
-                <button className="btn-secondary btn-sm" onClick={downloadSubmission}>PDF</button>
+                <button className="btn-secondary btn-sm" onClick={downloadSubmission}>
+                  {String(submission.submissionFile?.fileName || '').toLowerCase().endsWith('.js') ? 'File' : 'PDF'}
+                </button>
               </div>
               <div className="text-xs text-[var(--text-muted)]">Status: {submission.status}</div>
+              {submission.autoGrade?.status && submission.autoGrade.status !== 'NOT_RUN' && (
+                <div className="text-sm text-[var(--text-secondary)]">
+                  Auto grade: <span className="font-semibold text-[var(--text-primary)]">{submission.autoGrade.percentage ?? 0}%</span> ({submission.autoGrade.summary || submission.autoGrade.status})
+                </div>
+              )}
               {submission.status === 'GRADED' && (
                 <div className="text-sm text-[var(--text-secondary)]">
                   Score: <span className="font-semibold text-[var(--text-primary)]">{submission.finalGrade}/{submission.assignment?.totalMarks}</span>

@@ -9,6 +9,20 @@ const MCQAttempt = require('../models/MCQAttempt');
 const ruleEngine = require('../services/ruleEngine');
 const gamificationService = require('../services/gamificationService');
 const { calculateMomentumScore } = require('../services/momentumService');
+const { computeMomentumScore2 } = require('../services/momentumScore2Service');
+const { analyzeStudyLogs } = require('../services/studySessionAnalyzerService');
+
+const semesterToYear = (semester) => Math.ceil(Number(semester) / 2);
+const buildStudentAcademicVisibility = (user) => ({
+  department: user.department,
+  $or: [
+    { class: { $exists: false }, targetYear: { $exists: false } },
+    { class: null, targetYear: { $exists: false } },
+    { class: { $exists: false }, targetYear: user.year ?? semesterToYear(user.semester ?? 1), targetSemester: user.semester ?? 1 },
+    { class: null, targetYear: user.year ?? semesterToYear(user.semester ?? 1), targetSemester: user.semester ?? 1 },
+    ...(user.class ? [{ class: user.class }] : [])
+  ]
+});
 
 const getCurrentWeekRange = () => {
   const now = new Date();
@@ -122,6 +136,35 @@ const getStudyLogs = async (req, res, next) => {
 
     const logs = await StudyLog.find(filter).sort({ date: -1 });
     res.json({ success: true, data: logs });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getStudySessionAnalysis = async (req, res, next) => {
+  try {
+    const days = Math.max(7, Math.min(120, Number(req.query?.days || 30)));
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - days);
+
+    const logs = await StudyLog.find({
+      student: req.user._id,
+      date: { $gte: from, $lte: to }
+    })
+      .sort({ date: 1 })
+      .select('date duration questionsAttempted questionsCorrect')
+      .lean();
+
+    const analysis = analyzeStudyLogs({ logs });
+
+    res.json({
+      success: true,
+      data: {
+        range: { from, to, days },
+        analysis
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -365,17 +408,17 @@ const getLeaderboard = async (req, res, next) => {
 
 const getStudentDashboard = async (req, res, next) => {
   try {
+    const now = new Date();
     const upcomingTests = await MCQTest.find({
-      status: 'PUBLISHED',
-      startTime: { $gt: new Date() }
-    }).limit(5).sort({ startTime: 1 }).populate('subject');
+      isPublished: true,
+      ...buildStudentAcademicVisibility(req.user),
+      startDateTime: { $gt: now },
+    }).limit(5).sort({ startDateTime: 1 }).populate('subject');
 
     const recentResults = await MCQAttempt.find({
       student: req.user._id,
-      status: 'COMPLETED'
+      status: { $in: ['SUBMITTED', 'TIMED_OUT'] }
     }).limit(5).sort({ submittedAt: -1 }).populate('test');
-
-    const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay());
     weekStart.setHours(0, 0, 0, 0);
@@ -388,6 +431,16 @@ const getStudentDashboard = async (req, res, next) => {
       ? latestScore
       : await calculateMomentumScore(req.user._id, weekStart, weekEnd);
 
+    const momentumHistoryDesc = await MomentumScore.find({ student: req.user._id })
+      .sort({ weekStart: -1, createdAt: -1 })
+      .limit(12)
+      .select('score weekStart')
+      .lean();
+
+    const momentumScore2 = await computeMomentumScore2({
+      history: (momentumHistoryDesc || []).reverse()
+    });
+
     const user = await User.findById(req.user._id);
 
     res.json({
@@ -396,6 +449,7 @@ const getStudentDashboard = async (req, res, next) => {
         upcomingTests,
         recentResults,
         momentum: scoreDoc?.score || 0,
+        momentumScore2,
         streak: user.currentStreak || 0,
         xpPoints: user.xpPoints || 0
       }
@@ -409,23 +463,66 @@ const getStudentTests = async (req, res, next) => {
   try {
     const { status } = req.query;
     const now = new Date();
+    const visibility = {
+      isPublished: true,
+      ...buildStudentAcademicVisibility(req.user)
+    };
 
-    let query = { status: 'PUBLISHED' };
-
-    if (status === 'available') {
-      query.startTime = { $lte: now };
-      query.endTime = { $gte: now };
-    } else if (status === 'completed') {
+    let tests = [];
+    if (status === 'completed') {
       const attempts = await MCQAttempt.find({
         student: req.user._id,
-        status: 'COMPLETED'
-      }).select('test');
-      query._id = { $in: attempts.map(a => a.test) };
-    }
+        status: { $in: ['SUBMITTED', 'TIMED_OUT'] }
+      })
+        .select('test status submittedAt percentage')
+        .sort({ submittedAt: -1, createdAt: -1 })
+        .lean();
 
-    const tests = await MCQTest.find(query)
-      .populate('subject teacher')
-      .sort({ startTime: -1 });
+      const attemptedTestIds = [...new Set(attempts.map((a) => a.test?.toString()).filter(Boolean))];
+      const testsDocs = await MCQTest.find({ ...visibility, _id: { $in: attemptedTestIds } })
+        .populate('subject', 'name code')
+        .populate('createdBy', 'name')
+        .sort({ startDateTime: -1 })
+        .lean();
+      const latestAttemptByTest = new Map();
+      for (const attempt of attempts) {
+        const key = attempt.test?.toString();
+        if (key && !latestAttemptByTest.has(key)) latestAttemptByTest.set(key, attempt);
+      }
+      tests = testsDocs.map((test) => ({
+        ...test,
+        attemptStatus: 'SUBMITTED',
+        latestAttempt: latestAttemptByTest.get(test._id.toString()) || null
+      }));
+    } else {
+      const testsDocs = await MCQTest.find({
+        ...visibility,
+        startDateTime: { $lte: now },
+        endDateTime: { $gte: now }
+      })
+        .populate('subject', 'name code')
+        .populate('createdBy', 'name')
+        .sort({ startDateTime: 1 })
+        .lean();
+
+      const attempts = await MCQAttempt.find({
+        student: req.user._id,
+        test: { $in: testsDocs.map((t) => t._id) }
+      }).select('test status').lean();
+
+      const statusByTest = new Map();
+      for (const attempt of attempts) {
+        const key = attempt.test?.toString();
+        if (!key) continue;
+        if (attempt.status === 'IN_PROGRESS') statusByTest.set(key, 'IN_PROGRESS');
+        else if (!statusByTest.has(key)) statusByTest.set(key, attempt.status);
+      }
+
+      tests = testsDocs.map((test) => ({
+        ...test,
+        attemptStatus: statusByTest.get(test._id.toString()) || 'NOT_STARTED'
+      }));
+    }
 
     res.json({ success: true, data: tests });
   } catch (error) {
@@ -437,7 +534,7 @@ const getStudentResults = async (req, res, next) => {
   try {
     const results = await MCQAttempt.find({
       student: req.user._id,
-      status: 'COMPLETED'
+      status: { $in: ['SUBMITTED', 'TIMED_OUT'] }
     })
       .populate('test')
       .populate({ path: 'test', populate: { path: 'subject' } })
@@ -446,11 +543,11 @@ const getStudentResults = async (req, res, next) => {
     const formattedResults = results.map(result => ({
       _id: result._id,
       test: result.test,
-      score: result.score,
+      score: result.totalScore || 0,
       totalScore: result.test?.totalMarks || 0,
       percentage: result.percentage,
-      correctAnswers: result.correctAnswers,
-      wrongAnswers: result.wrongAnswers,
+      correctAnswers: (result.answers || []).filter((a) => a.isCorrect).length,
+      wrongAnswers: (result.answers || []).filter((a) => a.selectedOption >= 0 && !a.isCorrect).length,
       submittedAt: result.submittedAt
     }));
 
@@ -463,6 +560,7 @@ const getStudentResults = async (req, res, next) => {
 module.exports = {
   createStudyLog,
   getStudyLogs,
+  getStudySessionAnalysis,
   logMood,
   getMoods,
   getStudentAnalytics,

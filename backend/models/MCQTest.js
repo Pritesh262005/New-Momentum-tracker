@@ -7,6 +7,8 @@ const mcqTestSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
   class: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
+  targetYear: { type: Number, min: 1, max: 4 },
+  targetSemester: { type: Number, min: 1, max: 8 },
   questions: [{
     questionText: { type: String, required: true },
     options: {
@@ -38,6 +40,9 @@ const mcqTestSchema = new mongoose.Schema({
 mcqTestSchema.pre('save', function(next) {
   if (this.questions && this.questions.length > 0) {
     this.totalMarks = this.questions.reduce((sum, q) => sum + q.marks, 0);
+  }
+  if (this.targetSemester && !this.targetYear) {
+    this.targetYear = Math.ceil(Number(this.targetSemester) / 2);
   }
   next();
 });

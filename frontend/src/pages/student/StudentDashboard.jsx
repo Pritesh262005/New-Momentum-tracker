@@ -48,6 +48,18 @@ const StudentDashboard = () => {
   if (loading) return <LoadingSpinner fullscreen />;
 
   const grade = getGrade(dash?.momentum ?? 0);
+  const ms2 = dash?.momentumScore2;
+  const nextPred = ms2?.nextWeek?.predictedScore;
+  const nextLow = ms2?.nextWeek?.rangeLow;
+  const nextHigh = ms2?.nextWeek?.rangeHigh;
+  const isAnomaly = Boolean(ms2?.anomaly?.isAnomaly);
+  const forecastSub = nextPred === null || nextPred === undefined
+    ? 'Need 3+ weeks history'
+    : isAnomaly
+      ? 'Unusual change detected'
+      : (nextLow !== null && nextLow !== undefined && nextHigh !== null && nextHigh !== undefined)
+        ? `95% range ${nextLow}-${nextHigh}`
+        : 'Trend-based forecast';
 
   return (
     <div className="page-container">
@@ -57,7 +69,8 @@ const StudentDashboard = () => {
         breadcrumbs={['Dashboard']}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
+        <StatCard icon="ML" label="Next Week" value={nextPred === null || nextPred === undefined ? 'N/A' : `${Math.round(nextPred * 100) / 100}%`} color={isAnomaly ? 'red' : 'violet'} sub={forecastSub} />
         <StatCard icon="📈" label="Momentum" value={`${dash?.momentum ?? 0}%`} color={grade.color === 'green' ? 'green' : grade.color === 'red' ? 'red' : 'amber'} sub={grade.label} />
         <StatCard icon="⭐" label="XP Points" value={dash?.xpPoints ?? 0} color="indigo" />
         <StatCard icon="🔥" label="Streak" value={`${dash?.streak ?? 0} days`} color="rose" />

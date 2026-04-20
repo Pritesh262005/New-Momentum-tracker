@@ -17,7 +17,7 @@ export default function Avatar({ name, size = 'md', color }) {
   ];
 
   const hash = (name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const gradient = gradients && gradients.length > 0 ? gradients[hash % gradients.length] : gradients[0];
+  const gradient = gradients.length > 0 ? gradients[hash % gradients.length] : 'from-slate-400 to-slate-600';
 
   return (
     <div

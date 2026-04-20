@@ -11,6 +11,10 @@ import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../hooks/useToast';
 import api from '../../api/axios';
 
+const years = [1, 2, 3, 4];
+const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
+const defaultAssignedYearGroups = [{ year: 1, semesters: [1, 2] }];
+
 export default function AdminUsers() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -23,23 +27,27 @@ export default function AdminUsers() {
   const [confirmState, setConfirmState] = useState({ open: false, variant: 'default', title: '', message: '', confirmLabel: 'Confirm', action: null });
   const [actionLoading, setActionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({ role: '', department: '', year: '', semester: '' });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     role: 'STUDENT',
     rollNumber: '',
-    department: ''
+    department: '',
+    year: 1,
+    semester: 1,
+    assignedYearGroups: defaultAssignedYearGroups
   });
 
   useEffect(() => {
     fetchUsers();
     fetchDepartments();
-  }, [pagination.page]);
+  }, [pagination.page, filters.role, filters.department, filters.year, filters.semester]);
 
   const fetchUsers = async () => {
     try {
       const response = await api.get('/admin/users', {
-        params: { page: pagination.page, limit: pagination.limit }
+        params: { page: pagination.page, limit: pagination.limit, ...filters }
       });
       const userList = response.data?.data || [];
       setUsers(Array.isArray(userList) ? userList : []);
@@ -73,7 +81,10 @@ export default function AdminUsers() {
         email: '',
         role: 'STUDENT',
         rollNumber: '',
-        department: ''
+        department: '',
+        year: 1,
+        semester: 1,
+        assignedYearGroups: defaultAssignedYearGroups
       });
       fetchUsers();
     } catch (error) {
@@ -84,7 +95,30 @@ export default function AdminUsers() {
   const handleRoleChange = (role) => {
     setFormData((prev) => ({
       ...prev,
-      role
+      role,
+      assignedYearGroups: ['TEACHER', 'HOD'].includes(role) ? prev.assignedYearGroups : defaultAssignedYearGroups
+    }));
+  };
+
+  const updateAssignedGroup = (index, patch) => {
+    setFormData((prev) => {
+      const groups = prev.assignedYearGroups.slice();
+      groups[index] = { ...groups[index], ...patch };
+      return { ...prev, assignedYearGroups: groups };
+    });
+  };
+
+  const addAssignedGroup = () => {
+    setFormData((prev) => ({
+      ...prev,
+      assignedYearGroups: [...prev.assignedYearGroups, { year: 1, semesters: [1, 2] }]
+    }));
+  };
+
+  const removeAssignedGroup = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      assignedYearGroups: prev.assignedYearGroups.filter((_, i) => i !== index)
     }));
   };
 
@@ -217,7 +251,9 @@ export default function AdminUsers() {
       render: (row) => (
         <span style={{ color: 'var(--text-secondary)' }}>{row.department?.name || '-'}</span>
       )
-    }
+    },
+    { key: 'year', header: 'Year', render: (row) => row.role === 'STUDENT' ? `Year ${row.year || '-'}` : '-' },
+    { key: 'semester', header: 'Semester', render: (row) => row.role === 'STUDENT' ? `S${row.semester || '-'}` : '-' }
   ];
 
   if (loading) return <LoadingSpinner fullscreen />;
@@ -236,7 +272,30 @@ export default function AdminUsers() {
       />
 
       <div className="card p-6 mt-6">
-        <div className="mb-4">
+        <div className="mb-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <select className="input" value={filters.role} onChange={(e) => setFilters((p) => ({ ...p, role: e.target.value }))}>
+              <option value="">All Roles</option>
+              <option value="STUDENT">Student</option>
+              <option value="TEACHER">Teacher</option>
+              <option value="HOD">HOD</option>
+            </select>
+            <select className="input" value={filters.department} onChange={(e) => setFilters((p) => ({ ...p, department: e.target.value }))}>
+              <option value="">All Departments</option>
+              {departments.map((dept) => (
+                <option key={dept._id} value={dept._id}>{dept.name}</option>
+              ))}
+            </select>
+            <select className="input" value={filters.year} onChange={(e) => setFilters((p) => ({ ...p, year: e.target.value, semester: '' }))}>
+              <option value="">All Years</option>
+              {years.map((year) => <option key={year} value={year}>{`Year ${year}`}</option>)}
+            </select>
+            <select className="input" value={filters.semester} onChange={(e) => setFilters((p) => ({ ...p, semester: e.target.value }))}>
+              <option value="">All Semesters</option>
+              {semesters.map((semester) => <option key={semester} value={semester}>{`Semester ${semester}`}</option>)}
+            </select>
+          </div>
+
           <div className="relative">
             <input
               type="text"
@@ -309,7 +368,7 @@ export default function AdminUsers() {
                 className="input"
                 value={formData.rollNumber}
                 onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
-                placeholder="Enter roll number"
+                placeholder={formData.role === 'STUDENT' ? 'Enter roll number' : 'Optional staff number'}
                 required={formData.role === 'STUDENT'}
               />
             </div>
@@ -328,6 +387,68 @@ export default function AdminUsers() {
               ))}
             </select>
           </div>
+          {formData.role === 'STUDENT' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Year</label>
+                <select
+                  className="input"
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: Number(e.target.value), semester: Number(e.target.value) * 2 - 1 })}
+                >
+                  {years.map((year) => <option key={year} value={year}>{`Year ${year}`}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Semester</label>
+                <select
+                  className="input"
+                  value={formData.semester}
+                  onChange={(e) => setFormData({ ...formData, semester: Number(e.target.value) })}
+                >
+                  {semesters.filter((semester) => Math.ceil(semester / 2) === Number(formData.year)).map((semester) => (
+                    <option key={semester} value={semester}>{`Semester ${semester}`}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+          {['TEACHER', 'HOD'].includes(formData.role) && (
+            <div className="form-group">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Assigned Year Groups</label>
+                <button type="button" className="btn-secondary btn-sm" onClick={addAssignedGroup}>+ Add Group</button>
+              </div>
+              <div className="space-y-3">
+                {formData.assignedYearGroups.map((group, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-3">
+                      <select className="input" value={group.year} onChange={(e) => updateAssignedGroup(index, { year: Number(e.target.value), semesters: [Number(e.target.value) * 2 - 1, Number(e.target.value) * 2] })}>
+                        {years.map((year) => <option key={year} value={year}>{`Year ${year}`}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-7">
+                      <select
+                        className="input"
+                        multiple
+                        value={group.semesters.map(String)}
+                        onChange={(e) => updateAssignedGroup(index, {
+                          semesters: Array.from(e.target.selectedOptions).map((option) => Number(option.value))
+                        })}
+                      >
+                        {semesters.filter((semester) => Math.ceil(semester / 2) === Number(group.year)).map((semester) => (
+                          <option key={semester} value={semester}>{`Semester ${semester}`}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <button type="button" className="btn-danger btn-sm w-full" onClick={() => removeAssignedGroup(index)} disabled={formData.assignedYearGroups.length === 1}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex gap-3 justify-end pt-4">
             <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
               Cancel
@@ -369,12 +490,34 @@ export default function AdminUsers() {
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Department</p>
                 <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{selectedUser.department?.name || '-'}</p>
               </div>
+              {selectedUser.year ? (
+                <div>
+                  <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Year</p>
+                  <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{`Year ${selectedUser.year}`}</p>
+                </div>
+              ) : null}
+              {selectedUser.semester ? (
+                <div>
+                  <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Semester</p>
+                  <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{`Semester ${selectedUser.semester}`}</p>
+                </div>
+              ) : null}
               <div>
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Status</p>
                 <span className={`badge ${selectedUser.isActive ? 'badge-green' : 'badge-red'}`}>
                   {selectedUser.isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
+              {Array.isArray(selectedUser.assignedYearGroups) && selectedUser.assignedYearGroups.length > 0 ? (
+                <div className="col-span-2">
+                  <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Assigned Groups</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUser.assignedYearGroups.map((group, index) => (
+                      <span key={index} className="badge badge-indigo">{`Y${group.year}: ${group.semesters?.map((semester) => `S${semester}`).join(', ') || 'All'}`}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {selectedUser.class && (
                 <div>
                   <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Class</p>

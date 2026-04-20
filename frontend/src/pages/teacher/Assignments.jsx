@@ -6,8 +6,11 @@ import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useToast } from '../../hooks/useToast';
 import { formatDateTime } from '../../utils/formatters';
-import { downloadPdf } from '../../utils/download';
+import { downloadFile, downloadPdf } from '../../utils/download';
 import api from '../../api/axios';
+
+const years = [1, 2, 3, 4];
+const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function TeacherAssignments() {
   const toast = useToast();
@@ -96,8 +99,13 @@ export default function TeacherAssignments() {
                   <p className="text-sm mt-1 text-[var(--text-secondary)]">{a.description}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-[var(--text-muted)]">
                     <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">{a.subject}</span>
+                    {a.targetYear && a.targetSemester ? (
+                      <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">
+                        Year {a.targetYear} / Sem {a.targetSemester}
+                      </span>
+                    ) : null}
                     <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">Due {formatDateTime(a.dueDate)}</span>
-                    <span className={`px-2 py-1 rounded-full ${a.isPublished ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-900'}`}>
+                    <span className={`badge ${a.isPublished ? 'badge-green' : 'badge-amber'}`}>
                       {a.isPublished ? 'Published' : 'Draft'}
                     </span>
                     <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">
@@ -159,6 +167,12 @@ function AssignmentModal({ assignment, onClose, onSuccess }) {
     title: assignment?.title || '',
     description: assignment?.description || '',
     subject: assignment?.subject || '',
+    targetYear: assignment?.targetYear || 1,
+    targetSemester: assignment?.targetSemester || 1,
+    submissionType: assignment?.submissionType || 'PDF',
+    codeFunctionName: assignment?.codeSpec?.functionName || 'solve',
+    codeTimeoutMs: assignment?.codeSpec?.timeoutMs || 3000,
+    codeSpecTests: assignment?.codeSpec?.tests ? JSON.stringify(assignment.codeSpec.tests, null, 2) : '[]',
     dueDate: assignment?.dueDate ? new Date(assignment.dueDate).toISOString().slice(0, 16) : '',
     totalMarks: assignment?.totalMarks || 100,
     instructions: assignment?.instructions || '',
@@ -175,6 +189,14 @@ function AssignmentModal({ assignment, onClose, onSuccess }) {
       fd.append('title', form.title);
       fd.append('description', form.description);
       fd.append('subject', form.subject);
+      fd.append('targetYear', String(form.targetYear));
+      fd.append('targetSemester', String(form.targetSemester));
+      fd.append('submissionType', form.submissionType || 'PDF');
+      if ((form.submissionType || 'PDF') === 'CODE_JS') {
+        fd.append('codeFunctionName', form.codeFunctionName || 'solve');
+        fd.append('codeTimeoutMs', String(form.codeTimeoutMs || 3000));
+        fd.append('codeSpecTests', form.codeSpecTests || '[]');
+      }
       fd.append('dueDate', new Date(form.dueDate).toISOString());
       fd.append('totalMarks', String(form.totalMarks));
       fd.append('instructions', form.instructions);
@@ -209,10 +231,36 @@ function AssignmentModal({ assignment, onClose, onSuccess }) {
           <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Description</label>
           <textarea className="input" rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="form-group">
             <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Subject</label>
             <input className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} required />
+          </div>
+          <div className="form-group">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Target Year</label>
+            <select
+              className="input"
+              value={form.targetYear}
+              onChange={(e) => {
+                const targetYear = Number(e.target.value);
+                const options = semesters.filter((semester) => Math.ceil(semester / 2) === targetYear);
+                setForm({ ...form, targetYear, targetSemester: options[0] });
+              }}
+            >
+              {years.map((year) => <option key={year} value={year}>{`Year ${year}`}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Target Semester</label>
+            <select
+              className="input"
+              value={form.targetSemester}
+              onChange={(e) => setForm({ ...form, targetSemester: Number(e.target.value) })}
+            >
+              {semesters.filter((semester) => Math.ceil(semester / 2) === Number(form.targetYear)).map((semester) => (
+                <option key={semester} value={semester}>{`Semester ${semester}`}</option>
+              ))}
+            </select>
           </div>
           <div className="form-group">
             <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Due Date</label>
@@ -230,6 +278,40 @@ function AssignmentModal({ assignment, onClose, onSuccess }) {
             <p className="text-xs mt-1 text-[var(--text-muted)]">You can create an assignment with only instructions.</p>
           </div>
         </div>
+        <div className="form-group">
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Submission Type</label>
+          <select className="input" value={form.submissionType} onChange={(e) => setForm({ ...form, submissionType: e.target.value })}>
+            <option value="PDF">PDF</option>
+            <option value="CODE_JS">Code (.js)</option>
+          </select>
+          <p className="text-xs mt-1 text-[var(--text-muted)]">Code submissions require server autograde to be enabled.</p>
+        </div>
+
+        {form.submissionType === 'CODE_JS' && (
+          <div className="card p-4 border border-[var(--border)] bg-[var(--bg-base)]">
+            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Code Autograde Setup</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Function Name</label>
+                <input className="input" value={form.codeFunctionName} onChange={(e) => setForm({ ...form, codeFunctionName: e.target.value })} />
+                <p className="text-xs mt-1 text-[var(--text-muted)]">
+                  Students export <span className="font-mono">{`module.exports.${form.codeFunctionName || 'solve'} = (input) => output`}</span>.
+                </p>
+              </div>
+              <div className="form-group">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Timeout (ms)</label>
+                <input type="number" className="input" min="500" max="15000" value={form.codeTimeoutMs} onChange={(e) => setForm({ ...form, codeTimeoutMs: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="form-group mt-4">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Tests (JSON Array)</label>
+              <textarea className="input font-mono text-xs" rows={8} value={form.codeSpecTests} onChange={(e) => setForm({ ...form, codeSpecTests: e.target.value })} />
+              <p className="text-xs mt-1 text-[var(--text-muted)]">
+                Example: <span className="font-mono">{`[{"input":"2\\n3\\n","expected":"5"}]`}</span>
+              </p>
+            </div>
+          </div>
+        )}
         <div className="form-group">
           <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Instructions (Optional)</label>
           <textarea className="input" rows={3} value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} />
@@ -269,6 +351,9 @@ function SubmissionsModal({ assignment, onClose }) {
   const [loading, setLoading] = useState(true);
   const [submissions, setSubmissions] = useState([]);
   const [gradeTarget, setGradeTarget] = useState(null);
+  const [plagLoading, setPlagLoading] = useState(false);
+  const [plagReport, setPlagReport] = useState(null);
+  const [showMatchesFor, setShowMatchesFor] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -285,9 +370,30 @@ function SubmissionsModal({ assignment, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignment?._id]);
 
+  const runPlagiarism = async () => {
+    try {
+      setPlagLoading(true);
+      const { data } = await api.get(`/assignments/${assignment._id}/plagiarism`);
+      setPlagReport(data?.success ? data.data : null);
+      const { data: subs } = await api.get(`/assignments/${assignment._id}/submissions`);
+      setSubmissions(subs?.success && Array.isArray(subs.data) ? subs.data : []);
+      toast.success('Plagiarism check complete');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to run plagiarism check');
+      setPlagReport(null);
+    } finally {
+      setPlagLoading(false);
+    }
+  };
+
   const downloadSubmission = async (s) => {
     try {
-      await downloadPdf(`/assignments/submissions/${s._id}/file`, s.submissionFile?.fileName || 'submission.pdf');
+      const name = s.submissionFile?.fileName || 'submission';
+      if (String(name).toLowerCase().endsWith('.pdf')) {
+        await downloadPdf(`/assignments/submissions/${s._id}/file`, name);
+      } else {
+        await downloadFile(`/assignments/submissions/${s._id}/file`, name, 'text/plain');
+      }
     } catch (e) {
       toast.error('Failed to download submission');
     }
@@ -304,6 +410,15 @@ function SubmissionsModal({ assignment, onClose }) {
   return (
     <Modal isOpen={true} onClose={onClose} title={`Submissions • ${assignment.title}`} size="lg" noPad>
       <div className="p-6 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-[var(--text-muted)]">
+            {plagReport?.checkedAt ? `Plagiarism checked: ${formatDateTime(plagReport.checkedAt)}` : 'Plagiarism not checked yet'}
+          </div>
+          <button className="btn-secondary btn-sm" disabled={plagLoading} onClick={runPlagiarism}>
+            {plagLoading ? 'Checking...' : 'Run Plagiarism Check'}
+          </button>
+        </div>
+
         {submissions.length === 0 ? (
           <EmptyState icon="📭" title="No submissions yet" subtitle="Students submissions will appear here" />
         ) : (
@@ -314,14 +429,31 @@ function SubmissionsModal({ assignment, onClose }) {
                   <div className="text-sm font-semibold text-[var(--text-primary)]">{s.student?.name}</div>
                   <div className="text-xs text-[var(--text-muted)]">{s.student?.rollNumber || '-'}</div>
                   <div className="text-xs mt-1 text-[var(--text-muted)]">{s.isLate ? `Late by ${s.lateByHours || 0}h` : 'On time'}</div>
+                  {s.plagiarism?.checkedAt && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className={`badge badge-${s.plagiarism.suspicious ? 'red' : 'green'}`}>
+                        Similarity {Math.round((s.plagiarism.topSimilarity || 0) * 100)}%
+                      </span>
+                      {(s.plagiarism.matches || []).length > 0 && (
+                        <button type="button" className="btn-secondary btn-sm" onClick={() => setShowMatchesFor(s)}>
+                          View matches
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <button className="btn-secondary btn-sm" onClick={() => downloadSubmission(s)}>PDF</button>
+                  <button className="btn-secondary btn-sm" onClick={() => downloadSubmission(s)}>{String(s.submissionFile?.fileName || '').toLowerCase().endsWith('.js') ? 'File' : 'PDF'}</button>
                   <button className="btn-primary btn-sm" onClick={() => setGradeTarget(s)}>
                     {s.status === 'GRADED' ? 'Update Grade' : 'Grade'}
                   </button>
                 </div>
               </div>
+              {s.autoGrade?.status && s.autoGrade.status !== 'NOT_RUN' && (
+                <div className="mt-3 text-sm text-[var(--text-secondary)]">
+                  Auto grade: <span className="font-semibold text-[var(--text-primary)]">{s.autoGrade.percentage ?? 0}%</span> ({s.autoGrade.summary || s.autoGrade.status})
+                </div>
+              )}
               {s.status === 'GRADED' && (
                 <div className="mt-3 text-sm text-[var(--text-secondary)]">
                   Score: <span className="font-semibold text-[var(--text-primary)]">{s.finalGrade}/{assignment.totalMarks}</span>
@@ -348,6 +480,35 @@ function SubmissionsModal({ assignment, onClose }) {
             }
           }}
         />
+      )}
+
+      {showMatchesFor && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowMatchesFor(null)}
+          title={`Plagiarism Matches • ${showMatchesFor.student?.name || 'Student'}`}
+          size="md"
+        >
+          <div className="space-y-3">
+            <div className="text-xs text-[var(--text-muted)]">
+              Threshold: {Math.round(((showMatchesFor.plagiarism?.threshold || 0.78) * 100))}%
+            </div>
+            {(showMatchesFor.plagiarism?.matches || []).length === 0 ? (
+              <EmptyState icon="✅" title="No matches" subtitle="No strong similarity found" />
+            ) : (
+              <div className="space-y-2">
+                {(showMatchesFor.plagiarism.matches || []).map((m) => (
+                  <div key={String(m.submission || m.student || m.studentName)} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-base)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">{m.studentName || 'Student'}</div>
+                      <span className="badge badge-amber">{Math.round((m.similarity || 0) * 100)}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
       )}
     </Modal>
   );

@@ -22,6 +22,34 @@ const assignmentSubmissionSchema = new mongoose.Schema({
     score: Number,
     maxScore: Number
   }],
+  plagiarism: {
+    checkedAt: { type: Date },
+    threshold: { type: Number },
+    topSimilarity: { type: Number },
+    suspicious: { type: Boolean, default: false },
+    matches: [{
+      submission: { type: mongoose.Schema.Types.ObjectId, ref: 'AssignmentSubmission' },
+      student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      studentName: { type: String },
+      similarity: { type: Number }
+    }]
+  },
+  autoGrade: {
+    status: { type: String, enum: ['NOT_RUN', 'PASSED', 'FAILED', 'ERROR'], default: 'NOT_RUN' },
+    ranAt: { type: Date },
+    functionName: { type: String },
+    totalTests: { type: Number },
+    passedTests: { type: Number },
+    percentage: { type: Number },
+    summary: { type: String },
+    results: [{
+      index: { type: Number },
+      input: { type: String },
+      expected: { type: String },
+      actual: { type: String },
+      passed: { type: Boolean }
+    }]
+  },
   gradedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   gradedAt: { type: Date },
   returnedAt: { type: Date }

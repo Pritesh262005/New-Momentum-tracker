@@ -164,10 +164,15 @@ exports.getAvailableTests = async (req, res, next) => {
   try {
     const now = new Date();
     const tests = await MCQTest.find({
-      class: req.user.class,
+      department: req.user.department,
       isPublished: true,
       startDateTime: { $lte: now },
-      endDateTime: { $gte: now }
+      endDateTime: { $gte: now },
+      $or: [
+        { class: { $exists: false } },
+        { class: null },
+        ...(req.user.class ? [{ class: req.user.class }] : [])
+      ]
     }).populate('createdBy', 'name');
 
     const testsWithStatus = await Promise.all(tests.map(async (test) => {
@@ -203,6 +208,12 @@ exports.startAttempt = async (req, res, next) => {
     const now = new Date();
     if (now < test.startDateTime || now > test.endDateTime) {
       return res.status(400).json({ success: false, message: 'Test not in active time window' });
+    }
+    if (test.department?.toString() !== req.user.department?.toString()) {
+      return res.status(403).json({ success: false, message: 'This test is not in your department' });
+    }
+    if (test.class && test.class.toString() !== req.user.class?.toString()) {
+      return res.status(403).json({ success: false, message: 'This test is not assigned to your class' });
     }
 
     const existingAttempts = await MCQAttempt.countDocuments({ test: req.params.id, student: req.user._id });

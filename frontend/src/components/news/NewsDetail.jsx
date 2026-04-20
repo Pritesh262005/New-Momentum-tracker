@@ -111,6 +111,11 @@ export default function NewsDetail({ news, onClose }) {
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Write a comment..."
+                  style={{
+                    color: 'var(--text-primary)',
+                    background: 'var(--bg-base)',
+                    borderColor: 'var(--border)'
+                  }}
                 />
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Posting...' : 'Post'}

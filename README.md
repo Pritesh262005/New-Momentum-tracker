@@ -86,6 +86,54 @@ Where:
 - Mood = average mood level × 20
 ```
 
+## Momentum Score 2.0 (Free ML)
+
+The student dashboard (`GET /api/student/dashboard`) includes a `momentumScore2` payload computed locally (no paid APIs):
+
+- Prediction: TensorFlow.js linear regression on the last ~12 weekly momentum scores → predicts next week’s momentum.
+- Anomaly detection: flags unusual week-to-week changes using residual z-score (useful for spotting sudden drops/spikes).
+
+## AI Tutor (Free NLP Models)
+
+ALMTS includes an **AI Tutor** that can generate:
+- Explanations for **wrong MCQ answers**
+- Short **feedback text** for a completed MCQ attempt
+
+Backend endpoints (requires auth):
+- `POST /api/ai-tutor/mcq/explain` (body: `{ attemptId, questionIndex }`)
+- `POST /api/ai-tutor/mcq/feedback` (body: `{ attemptId }`)
+
+By default it calls Hugging Face's free Inference API (limited). If it fails or no token is configured, it falls back to a local rule-based response.
+
+## News Moderation (Free NLP)
+
+Comments on news posts are moderated on the backend using a lightweight free NLP approach:
+- Keyword filter (bad words + harmful phrases)
+- Simple lexicon sentiment score (negative sentiment + negative keywords) to block toxic comments
+
+Config in `backend/.env`:
+- `NEWS_MODERATION_ENABLED=true`
+- `NEWS_BAD_WORDS=...` (optional)
+- `NEWS_BLOCK_PHRASES=...` (optional)
+- `NEWS_SENTIMENT_BLOCK_THRESHOLD=-0.6`
+
+## Study Session Analyzer (Free Stats)
+
+The backend can analyze your study logs (no paid APIs) and flag:
+- Low consistency: if your longest gap between study days is **> 3 days**
+- Accuracy drop: if your recent accuracy average drops by **> 15%**
+
+Endpoint:
+- `GET /api/student/study-analysis?days=30`
+
+## Assignment System (Free Tools)
+
+- Plagiarism check (TF-IDF cosine similarity on PDF submissions):
+  - Teacher/HOD endpoint: `GET /api/assignments/:id/plagiarism`
+  - Config: `PLAGIARISM_THRESHOLD=0.78`
+- Code submissions (optional): create an assignment with `submissionType=CODE_JS` and define simple input/output tests.
+  - Autograde is disabled by default; enable with `CODE_AUTOGRADE_ENABLED=true` and `CODE_AUTOGRADE_ACK_RISK=true`.
+
 ## 🎮 Gamification System
 
 | Badge | Criteria | XP Reward |

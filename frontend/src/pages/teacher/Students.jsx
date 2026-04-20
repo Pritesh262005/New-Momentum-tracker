@@ -9,21 +9,26 @@ import { useDebounce } from '../../hooks/useDebounce';
 import api from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 
+const years = [1, 2, 3, 4];
+const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
+
 export default function TeacherStudents() {
   const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState('');
+  const [year, setYear] = useState('');
+  const [semester, setSemester] = useState('');
   const debouncedSearch = useDebounce(search);
 
   useEffect(() => {
     fetchStudents();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, year, semester]);
 
   const fetchStudents = async () => {
     try {
-      const response = await api.get('/teacher/students', { params: { search: debouncedSearch } });
+      const response = await api.get('/teacher/students', { params: { search: debouncedSearch, year, semester } });
       const studentList = response.data?.data || [];
       setStudents(Array.isArray(studentList) ? studentList : []);
     } catch (error) {
@@ -49,6 +54,7 @@ export default function TeacherStudents() {
       )
     },
     { key: 'department', header: 'Department', render: (row) => row.department?.name || '-' },
+    { key: 'year', header: 'Year', render: (row) => `Year ${row.year ?? Math.ceil((row.semester ?? 1) / 2)}` },
     { key: 'semester', header: 'Semester', render: (row) => `S${row.semester ?? 1}` },
     {
       key: 'momentum',
@@ -75,7 +81,7 @@ export default function TeacherStudents() {
       />
 
       <div className="card p-6">
-        <div className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <input
             type="text"
             placeholder="Search students..."
@@ -83,6 +89,16 @@ export default function TeacherStudents() {
             onChange={(e) => setSearch(e.target.value)}
             className="input-base max-w-md"
           />
+          <select className="input-base" value={year} onChange={(e) => { setYear(e.target.value); setSemester(''); }}>
+            <option value="">All Years</option>
+            {years.map((item) => <option key={item} value={item}>Year {item}</option>)}
+          </select>
+          <select className="input-base" value={semester} onChange={(e) => setSemester(e.target.value)}>
+            <option value="">All Semesters</option>
+            {semesters
+              .filter((item) => !year || Math.ceil(item / 2) === Number(year))
+              .map((item) => <option key={item} value={item}>Semester {item}</option>)}
+          </select>
         </div>
         <DataTable columns={columns} data={students} onRowClick={(row) => navigate(`/teacher/students/${row._id}`)} rowKey="_id" />
       </div>

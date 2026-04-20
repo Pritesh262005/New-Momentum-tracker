@@ -7,6 +7,9 @@ import { useToast } from '../../hooks/useToast';
 import { formatDateTime } from '../../utils/formatters';
 import api from '../../api/axios';
 
+const years = [1, 2, 3, 4];
+const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
+
 export default function HODExams() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -22,29 +25,36 @@ export default function HODExams() {
   const [formData, setFormData] = useState({
     name: '',
     date: new Date().toISOString().slice(0, 10),
+    targetYear: '',
+    targetSemester: '',
     subjectIds: []
   });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [{ data: examRes }, { data: subjRes }] = await Promise.all([
-          api.get('/exams'),
-          api.get('/hod/subjects')
-        ]);
+  const [filters, setFilters] = useState({ year: '', semester: '' });
 
-        setExams(examRes.success ? examRes.data : []);
-        setSubjects(subjRes.success ? subjRes.data : []);
-      } catch (e) {
-        toast.error('Failed to load exams');
-        setExams([]);
-        setSubjects([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const fetchExams = async () => {
+    try {
+      setLoading(true);
+      const [{ data: examRes }, { data: subjRes }] = await Promise.all([
+        api.get('/exams', { params: filters }),
+        api.get('/hod/subjects')
+      ]);
+
+      setExams(examRes.success ? examRes.data : []);
+      setSubjects(subjRes.success ? subjRes.data : []);
+    } catch (e) {
+      toast.error('Failed to load exams');
+      setExams([]);
+      setSubjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchExams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filters.year, filters.semester]);
 
   const subjectById = useMemo(() => {
     const m = new Map();
@@ -55,7 +65,7 @@ export default function HODExams() {
   const selectedSubjects = formData.subjectIds.map((id) => subjectById.get(id)).filter(Boolean);
 
   const refreshExams = async () => {
-    const { data } = await api.get('/exams');
+    const { data } = await api.get('/exams', { params: filters });
     setExams(data.success ? data.data : []);
   };
 
@@ -73,11 +83,13 @@ export default function HODExams() {
       await api.post('/exams', {
         name: formData.name,
         date: new Date(formData.date).toISOString(),
+        targetYear: formData.targetYear,
+        targetSemester: formData.targetSemester,
         subjectIds: formData.subjectIds
       });
       toast.success('Exam created');
       setShowCreate(false);
-      setFormData({ name: '', date: new Date().toISOString().slice(0, 10), subjectIds: [] });
+      setFormData({ name: '', date: new Date().toISOString().slice(0, 10), targetYear: '', targetSemester: '', subjectIds: [] });
       await refreshExams();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create exam');
@@ -114,6 +126,39 @@ export default function HODExams() {
         }
       />
 
+      <div className="card p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="form-group">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Filter by Year</label>
+            <select
+              className="input-base"
+              value={filters.year}
+              onChange={(e) => setFilters((prev) => ({ ...prev, year: e.target.value, semester: '' }))}
+            >
+              <option value="">All Years</option>
+              {years.map((year) => (
+                <option key={year} value={year}>Year {year}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Filter by Semester</label>
+            <select
+              className="input-base"
+              value={filters.semester}
+              onChange={(e) => setFilters((prev) => ({ ...prev, semester: e.target.value }))}
+            >
+              <option value="">All Semesters</option>
+              {semesters
+                .filter((semester) => !filters.year || Math.ceil(semester / 2) === Number(filters.year))
+                .map((semester) => (
+                  <option key={semester} value={semester}>Semester {semester}</option>
+                ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {exams.length === 0 ? (
         <EmptyState
           icon="📝"
@@ -141,6 +186,11 @@ export default function HODExams() {
                     <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">
                       {exam.subjects?.length || 0} Subjects
                     </span>
+                    {(exam.targetYear || exam.targetSemester) && (
+                      <span className="px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 font-medium">
+                        {exam.targetYear ? `Y${exam.targetYear}` : ''} {exam.targetSemester ? `S${exam.targetSemester}` : ''}
+                      </span>
+                    )}
                     <span className="px-2 py-1 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 text-white">
                       {exam.department?.code || 'DEPT'}
                     </span>
@@ -180,13 +230,46 @@ export default function HODExams() {
             />
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Target Year</label>
+              <select
+                className="input"
+                value={formData.targetYear}
+                onChange={(e) => setFormData({ ...formData, targetYear: e.target.value, targetSemester: '', subjectIds: [] })}
+                required
+              >
+                <option value="">Select Year</option>
+                {years.map((y) => <option key={y} value={y}>Year {y}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Target Semester</label>
+              <select
+                className="input"
+                value={formData.targetSemester}
+                onChange={(e) => setFormData({ ...formData, targetSemester: e.target.value, subjectIds: [] })}
+                required
+              >
+                <option value="">Select Semester</option>
+                {semesters
+                  .filter((s) => !formData.targetYear || Math.ceil(s / 2) === Number(formData.targetYear))
+                  .map((s) => <option key={s} value={s}>Semester {s}</option>)}
+              </select>
+            </div>
+          </div>
+
           <div className="form-group">
             <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Subjects</label>
-            {subjects.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)]">No subjects found. Add subjects first.</p>
+            {!formData.targetYear || !formData.targetSemester ? (
+              <p className="text-sm text-[var(--text-muted)] italic">Please select Year and Semester to view subjects.</p>
+            ) : subjects.filter(s => s.year === Number(formData.targetYear) && s.semester === Number(formData.targetSemester)).length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)]">No subjects found for this Year and Semester.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {subjects.map((s) => {
+                {subjects
+                  .filter(s => s.year === Number(formData.targetYear) && s.semester === Number(formData.targetSemester))
+                  .map((s) => {
                   const checked = formData.subjectIds.includes(s._id);
                   return (
                     <button

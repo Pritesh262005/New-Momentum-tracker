@@ -1,8 +1,9 @@
 import api from '../api/axios';
 
-export async function downloadPdf(url, filename = 'file.pdf') {
+export async function downloadFile(url, filename = 'file', mimeType = null) {
   const res = await api.get(url, { responseType: 'blob' });
-  const blob = new Blob([res.data], { type: 'application/pdf' });
+  const type = mimeType || res.headers?.['content-type'] || 'application/octet-stream';
+  const blob = new Blob([res.data], { type });
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = objectUrl;
@@ -13,3 +14,6 @@ export async function downloadPdf(url, filename = 'file.pdf') {
   URL.revokeObjectURL(objectUrl);
 }
 
+export async function downloadPdf(url, filename = 'file.pdf') {
+  return downloadFile(url, filename, 'application/pdf');
+}

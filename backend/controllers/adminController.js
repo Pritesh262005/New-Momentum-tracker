@@ -3,9 +3,27 @@ const User = require('../models/User');
 const Department = require('../models/Department');
 const Class = require('../models/Class');
 const AuditLog = require('../models/AuditLog');
+const Subject = require('../models/Subject');
 const generateTempPassword = require('../utils/generateTempPassword');
 const auditLogger = require('../utils/auditLogger');
 const { sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
+const semesterToYear = (semester) => Math.ceil(Number(semester) / 2);
+const clampYear = (year) => {
+  const value = Number(year);
+  return Number.isInteger(value) && value >= 1 && value <= 4 ? value : null;
+};
+const clampSemester = (semester) => {
+  const value = Number(semester);
+  return Number.isInteger(value) && value >= 1 && value <= 8 ? value : null;
+};
+const sanitizeAssignedYearGroups = (groups) => (
+  Array.isArray(groups) ? groups : []
+).map((group) => ({
+  year: clampYear(group?.year),
+  semesters: Array.isArray(group?.semesters)
+    ? [...new Set(group.semesters.map((semester) => clampSemester(semester)).filter(Boolean))]
+    : []
+})).filter((group) => group.year);
 
 const generateUserId = async ({ role, rollNumber, departmentId }) => {
   const prefix = role === 'STUDENT' ? 'STU' : role === 'TEACHER' ? 'TCH' : role === 'HOD' ? 'HOD' : 'ADM';
@@ -36,7 +54,7 @@ const generateUserId = async ({ role, rollNumber, departmentId }) => {
 
 const createUser = async (req, res, next) => {
   try {
-    const { name, email, role, rollNumber, department, class: classId } = req.body;
+    const { name, email, role, rollNumber, department, class: classId, year, semester, assignedYearGroups } = req.body;
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -59,8 +77,9 @@ const createUser = async (req, res, next) => {
     let resolvedDepartment = department;
     let resolvedClassId = classId;
     let resolvedSemester;
+    let resolvedYear;
     if (role === 'STUDENT' && classId) {
-      const klass = await Class.findById(classId).select('_id department semester');
+      const klass = await Class.findById(classId).select('_id department year semester');
       if (!klass) {
         return res.status(400).json({ success: false, message: 'Invalid class' });
       }
@@ -70,6 +89,16 @@ const createUser = async (req, res, next) => {
       }
       resolvedClassId = klass._id;
       if (klass.semester !== undefined && klass.semester !== null) resolvedSemester = klass.semester;
+      if (klass.year !== undefined && klass.year !== null) resolvedYear = klass.year;
+    }
+
+    const safeSemester = resolvedSemester || clampSemester(semester);
+    const safeYear = resolvedYear || clampYear(year) || (safeSemester ? semesterToYear(safeSemester) : null);
+    if (role === 'STUDENT' && (!safeSemester || !safeYear)) {
+      return res.status(400).json({ success: false, message: 'Students require year and semester' });
+    }
+    if (safeSemester && safeYear && semesterToYear(safeSemester) !== safeYear) {
+      return res.status(400).json({ success: false, message: 'Semester does not belong to selected year' });
     }
 
     const tempPassword = generateTempPassword();
@@ -91,11 +120,13 @@ const createUser = async (req, res, next) => {
       payload.rollNumber = rollNumber;
       payload.department = resolvedDepartment;
       if (resolvedClassId) payload.class = resolvedClassId;
-      if (resolvedSemester !== undefined) payload.semester = resolvedSemester;
+      payload.year = safeYear;
+      if (safeSemester !== undefined) payload.semester = safeSemester;
       payload.semesterStartedAt = new Date();
     } else if (['HOD', 'TEACHER'].includes(role)) {
       payload.department = department;
       if (rollNumber) payload.rollNumber = rollNumber;
+      payload.assignedYearGroups = sanitizeAssignedYearGroups(assignedYearGroups);
     }
 
     const user = await User.create(payload);
@@ -130,12 +161,14 @@ const createUser = async (req, res, next) => {
 
 const getAllUsers = async (req, res, next) => {
   try {
-    const { role, department, isActive } = req.query;
+    const { role, department, isActive, year, semester } = req.query;
     const filter = {};
 
     if (role) filter.role = role;
     if (department) filter.department = department;
     if (isActive !== undefined) filter.isActive = isActive === 'true';
+    if (year) filter.year = Number(year);
+    if (semester) filter.semester = Number(semester);
 
     const users = await User.find(filter)
       .select('-password')
@@ -331,6 +364,51 @@ const getAllDepartments = async (req, res, next) => {
   }
 };
 
+const getAllSubjects = async (req, res, next) => {
+  try {
+    const filter = {};
+    if (req.query.department) filter.department = req.query.department;
+    if (req.query.year) filter.year = Number(req.query.year);
+    if (req.query.semester) filter.semester = Number(req.query.semester);
+    const subjects = await Subject.find(filter)
+      .populate('department', 'name code')
+      .sort({ 'department.name': 1, year: 1, semester: 1, name: 1 });
+    res.json({ success: true, data: subjects });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createSubject = async (req, res, next) => {
+  try {
+    const { name, code, description, credits, semester, year, department } = req.body;
+    const safeSemester = clampSemester(semester);
+    const safeYear = clampYear(year) || (safeSemester ? semesterToYear(safeSemester) : null);
+    if (!department) {
+      return res.status(400).json({ success: false, message: 'Department is required' });
+    }
+    if (!safeSemester || !safeYear) {
+      return res.status(400).json({ success: false, message: 'Year and semester are required' });
+    }
+    if (semesterToYear(safeSemester) !== safeYear) {
+      return res.status(400).json({ success: false, message: 'Semester does not belong to selected year' });
+    }
+
+    const subject = await Subject.create({
+      name,
+      code,
+      description,
+      credits,
+      semester: safeSemester,
+      year: safeYear,
+      department
+    });
+    res.status(201).json({ success: true, data: subject });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getAdminDashboard = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments({ isActive: true });
@@ -415,6 +493,8 @@ module.exports = {
   resetUserPassword,
   createDepartment,
   getAllDepartments,
+  getAllSubjects,
+  createSubject,
   getAdminDashboard,
   getAuditLogs,
   getAnalytics

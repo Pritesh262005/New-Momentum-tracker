@@ -11,6 +11,8 @@ const {
   resetUserPassword,
   createDepartment,
   getAllDepartments,
+  getAllSubjects,
+  createSubject,
   getAdminDashboard,
   getAuditLogs,
   getAnalytics
@@ -28,6 +30,8 @@ router.post('/users/:id/reset-password', resetUserPassword);
 
 router.post('/departments', createDepartment);
 router.get('/departments', getAllDepartments);
+router.post('/subjects', createSubject);
+router.get('/subjects', getAllSubjects);
 
 router.get('/dashboard', getAdminDashboard);
 router.get('/audit-logs', getAuditLogs);

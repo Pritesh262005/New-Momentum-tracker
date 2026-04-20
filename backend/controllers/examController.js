@@ -18,7 +18,7 @@ const computeAggregates = (marks) => {
 
 exports.createExam = async (req, res, next) => {
   try {
-    const { name, date, subjectIds } = req.body;
+    const { name, date, subjectIds, targetYear, targetSemester } = req.body;
 
     if (!name || !date) {
       return res.status(400).json({ success: false, message: 'name and date are required' });
@@ -42,6 +42,8 @@ exports.createExam = async (req, res, next) => {
       department: req.user.department,
       date: new Date(date),
       subjects: subjects.map((s) => ({ subject: s._id, name: s.name, code: s.code })),
+      targetYear: targetYear ? Number(targetYear) : undefined,
+      targetSemester: targetSemester ? Number(targetSemester) : undefined,
       createdBy: req.user._id
     });
 
@@ -56,6 +58,15 @@ exports.listExams = async (req, res, next) => {
     const filter = { isActive: true };
     if (req.user.role !== 'ADMIN') {
       filter.department = req.user.department;
+    }
+    
+    if (req.query.year) {
+      const yr = Number(req.query.year);
+      if (!Number.isNaN(yr)) filter.targetYear = yr;
+    }
+    if (req.query.semester) {
+      const sem = Number(req.query.semester);
+      if (!Number.isNaN(sem)) filter.targetSemester = sem;
     }
 
     const exams = await Exam.find(filter)

@@ -79,7 +79,7 @@ export default function AdminNews() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold mb-2">{item.title}</h3>
+                  <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>{item.title}</h3>
                   <p className="text-sm text-[var(--text-secondary)] mb-3">{item.content}</p>
                   <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
                     <span>By {item.author?.name}</span>
@@ -110,6 +110,7 @@ export default function AdminNews() {
       {selectedDetail && <NewsDetail news={selectedDetail} onClose={() => setSelectedDetail(null)} />}
       {showDelete && (
         <ConfirmModal
+          isOpen={showDelete}
           title="Delete News"
           message={`Delete ${selected?.title}?`}
           variant="danger"

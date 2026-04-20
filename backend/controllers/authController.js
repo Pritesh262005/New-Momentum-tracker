@@ -12,13 +12,28 @@ const login = async (req, res, next) => {
 
     const user = await User.findOne({ email }).populate('department class');
 
-    if (!user || !user.isActive) {
+    if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        blocked: true,
+        message: 'Your account was blocked by admin',
+        data: {
+          name: user.name,
+          email: user.email,
+          rollNumber: user.rollNumber || null,
+          role: user.role,
+          reason: user.deactivationReason || null
+        }
+      });
     }
 
     if (user.isTempPassword && user.tempPasswordExpiry < new Date()) {

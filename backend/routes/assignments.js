@@ -13,6 +13,7 @@ const {
   submitAssignment,
   resubmitAssignment,
   getSubmissions,
+  getPlagiarismReport,
   getSubmissionFile,
   gradeSubmission,
   getMySubmission
@@ -30,6 +31,7 @@ router.get('/:id/file', getAssignmentFile);
 router.post('/:id/submit', roleCheck('STUDENT'), submitAssignment);
 router.put('/:id/resubmit', roleCheck('STUDENT'), resubmitAssignment);
 router.get('/:id/submissions', roleCheck('TEACHER', 'HOD', 'PROFESSOR'), getSubmissions);
+router.get('/:id/plagiarism', roleCheck('TEACHER', 'HOD', 'PROFESSOR'), getPlagiarismReport);
 router.get('/submissions/:submissionId/file', getSubmissionFile);
 router.put('/submissions/:submissionId/grade', roleCheck('TEACHER', 'HOD', 'PROFESSOR'), gradeSubmission);
 router.get('/:id/my-submission', roleCheck('STUDENT'), getMySubmission);

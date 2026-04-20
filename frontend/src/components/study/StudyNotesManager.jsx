@@ -5,8 +5,11 @@ import EmptyState from '../common/EmptyState';
 import Modal from '../common/Modal';
 import { useToast } from '../../hooks/useToast';
 import api from '../../api/axios';
+import { downloadPdf } from '../../utils/download';
 
 const byName = (a, b) => (a?.name || '').localeCompare(b?.name || '');
+const years = [1, 2, 3, 4];
+const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function StudyNotesManager({ basePath, roleLabel }) {
   const toast = useToast();
@@ -18,12 +21,17 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
 
   const [form, setForm] = useState({
     subjectId: '',
+    unitNumber: 1,
     title: '',
     body: '',
     scope: 'DEPARTMENT',
     classId: '',
-    studentIds: []
+    studentIds: [],
+    targetYear: 1,
+    targetSemester: 1,
+    pdfFile: null
   });
+  const [materials, setMaterials] = useState([]);
 
   const subject = useMemo(
     () => targets.subjects.find((s) => s._id === form.subjectId) || null,
@@ -43,11 +51,21 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
     }
   };
 
+  const fetchMaterials = async (subjectId) => {
+    if (!subjectId) {
+      setMaterials([]);
+      return;
+    }
+    const { data } = await api.get(`${basePath}/study/materials`, { params: { subjectId } });
+    setMaterials(Array.isArray(data?.data) ? data.data : []);
+  };
+
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
         await fetchTargets();
+        if (form.subjectId) await fetchMaterials(form.subjectId);
       } catch (e) {
         toast.error('Failed to load subjects');
         setTargets({ subjects: [], classes: [], students: [] });
@@ -57,6 +75,10 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetchMaterials(form.subjectId).catch(() => setMaterials([]));
+  }, [basePath, form.subjectId]);
 
   const toggleStudent = (id) => {
     setForm((prev) => {
@@ -74,19 +96,41 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
 
     try {
       setCreating(true);
-      await api.post(`${basePath}/study/materials`, {
-        subjectId: form.subjectId,
-        title: form.title,
-        body: form.body,
-        scope: form.scope,
-        classId: form.scope === 'CLASS' ? form.classId : undefined,
-        studentIds: form.scope === 'STUDENTS' ? form.studentIds : undefined
+      const payload = new FormData();
+      payload.append('subjectId', form.subjectId);
+      payload.append('unitNumber', String(form.unitNumber || 1));
+      payload.append('title', form.title);
+      payload.append('body', form.body);
+      payload.append('scope', form.scope);
+      if (form.scope === 'CLASS' && form.classId) payload.append('classId', form.classId);
+      if (form.scope === 'YEAR_SEMESTER') {
+        payload.append('targetYear', String(form.targetYear));
+        payload.append('targetSemester', String(form.targetSemester));
+      }
+      if (form.scope === 'STUDENTS') {
+        (form.studentIds || []).forEach((id) => payload.append('studentIds', id));
+      }
+      if (form.pdfFile) payload.append('pdfFile', form.pdfFile);
+
+      await api.post(`${basePath}/study/materials`, payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      toast.success('Notes shared with students');
+      await fetchMaterials(form.subjectId);
+      toast.success('Material shared with students');
       setShowCreate(false);
-      setForm((prev) => ({ ...prev, title: '', body: '', classId: '', studentIds: [] }));
+      setForm((prev) => ({
+        ...prev,
+        unitNumber: 1,
+        title: '',
+        body: '',
+        classId: '',
+        studentIds: [],
+        targetYear: 1,
+        targetSemester: 1,
+        pdfFile: null
+      }));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to share notes');
+      toast.error(err.response?.data?.message || 'Failed to share material');
     } finally {
       setCreating(false);
     }
@@ -102,8 +146,8 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
         breadcrumbs={[{ label: 'Dashboard', path: basePath }, { label: 'Study Notes' }]}
         actions={
           <div className="flex gap-2">
-            <button className="btn-secondary btn-sm" onClick={fetchTargets}>Refresh</button>
-            <button className="btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Share Notes</button>
+            <button className="btn-secondary btn-sm" onClick={() => { fetchTargets(); fetchMaterials(form.subjectId); }}>Refresh</button>
+            <button className="btn-primary btn-sm" onClick={() => setShowCreate(true)}>+ Share Material</button>
           </div>
         }
       />
@@ -113,12 +157,48 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
       ) : (
         <div className="card p-6">
           <div className="text-sm text-[var(--text-muted)]">
-            Select a subject and share reading material. Students will see it in their Study section and get a "NEW" badge.
+            Select a subject, add a unit number, and upload text or PDF material. Students will see it in their Study section and get a "NEW" badge.
           </div>
         </div>
       )}
 
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Share Subject Notes" size="lg">
+      {form.subjectId && (
+        <div className="card p-6 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold">Existing Materials</h3>
+              <p className="text-sm text-[var(--text-muted)]">Use Unit 1 / Unit 2 PDFs later for automatic test generation.</p>
+            </div>
+          </div>
+          {materials.length === 0 ? (
+            <EmptyState icon="📄" title="No materials yet" subtitle="Upload the first unit PDF or notes for this subject" />
+          ) : (
+            <div className="space-y-3">
+              {materials.map((material) => (
+                <div key={material._id} className="rounded-xl border border-[var(--border)] bg-[var(--bg-base)] p-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{material.title}</div>
+                    <div className="text-xs text-[var(--text-muted)]">
+                      Unit {material.unitNumber} • {material.materialType}{material.attachmentName ? ` • ${material.attachmentName}` : ''}
+                    </div>
+                  </div>
+                  {material.hasAttachment ? (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={() => downloadPdf(`${basePath}/study/materials/${material._id}/file`, material.attachmentName || `unit-${material.unitNumber}.pdf`)}
+                    >
+                      Download PDF
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Share Subject Material" size="lg">
         <form onSubmit={create} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
@@ -143,14 +223,81 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
               <select
                 className="input"
                 value={form.scope}
-                onChange={(e) => setForm((p) => ({ ...p, scope: e.target.value, classId: '', studentIds: [] }))}
+                onChange={(e) => setForm((p) => ({
+                  ...p,
+                  scope: e.target.value,
+                  classId: '',
+                  studentIds: [],
+                  targetYear: 1,
+                  targetSemester: 1
+                }))}
               >
                 <option value="DEPARTMENT">All Department Students</option>
+                <option value="YEAR_SEMESTER">Specific Year / Semester</option>
                 <option value="CLASS">Specific Class</option>
                 <option value="STUDENTS">Selected Students</option>
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Unit Number</label>
+              <input
+                type="number"
+                min="1"
+                max="12"
+                className="input"
+                value={form.unitNumber}
+                onChange={(e) => setForm((p) => ({ ...p, unitNumber: Number(e.target.value || 1) }))}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>PDF Material</label>
+              <input
+                type="file"
+                className="input"
+                accept="application/pdf"
+                onChange={(e) => setForm((p) => ({ ...p, pdfFile: e.target.files?.[0] || null }))}
+              />
+            </div>
+          </div>
+
+          {form.scope === 'YEAR_SEMESTER' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Target Year</label>
+                <select
+                  className="input"
+                  value={form.targetYear}
+                  onChange={(e) => {
+                    const targetYear = Number(e.target.value);
+                    const options = semesters.filter((semester) => Math.ceil(semester / 2) === targetYear);
+                    setForm((p) => ({ ...p, targetYear, targetSemester: options[0] }));
+                  }}
+                >
+                  {years.map((year) => (
+                    <option key={year} value={year}>Year {year}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Target Semester</label>
+                <select
+                  className="input"
+                  value={form.targetSemester}
+                  onChange={(e) => setForm((p) => ({ ...p, targetSemester: Number(e.target.value) }))}
+                >
+                  {semesters
+                    .filter((semester) => Math.ceil(semester / 2) === Number(form.targetYear))
+                    .map((semester) => (
+                      <option key={semester} value={semester}>Semester {semester}</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {form.scope === 'CLASS' && (
             <div className="form-group">
@@ -212,7 +359,7 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
           </div>
 
           <div className="form-group">
-            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Reading Material</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Reading Material / Notes</label>
             <textarea
               className="input min-h-[220px] resize-none"
               value={form.body}
@@ -220,7 +367,7 @@ export default function StudyNotesManager({ basePath, roleLabel }) {
               placeholder="Paste notes, reading material, and key points here..."
             />
             <div className="text-xs mt-2 text-[var(--text-muted)]">
-              Students can read this material and take personal notes.
+              PDF upload is optional. Add text if you want extra points for automatic question generation.
             </div>
           </div>
 

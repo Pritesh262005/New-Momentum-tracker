@@ -7,6 +7,9 @@ import { useToast } from '../../hooks/useToast';
 import { formatDateTime } from '../../utils/formatters';
 import api from '../../api/axios';
 
+const years = [1, 2, 3, 4];
+const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
+
 export default function TeacherMarks() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -19,26 +22,35 @@ export default function TeacherMarks() {
 
   const [marks, setMarks] = useState({}); // subjectId -> { marks, maxMarks }
   const [showPreview, setShowPreview] = useState(false);
+  
+  const [filters, setFilters] = useState({ year: '', semester: '' });
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const studentParams = {};
+      if (filters.year) studentParams.year = filters.year;
+      if (filters.semester) studentParams.semester = filters.semester;
+
+      const [{ data: examRes }, { data: studentRes }] = await Promise.all([
+        api.get('/exams', { params: filters }),
+        api.get('/teacher/students', { params: studentParams })
+      ]);
+      setExams(examRes.success ? examRes.data : []);
+      setStudents(studentRes.success ? studentRes.data : []);
+    } catch (e) {
+      toast.error('Failed to load exams/students');
+      setExams([]);
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [{ data: examRes }, { data: studentRes }] = await Promise.all([
-          api.get('/exams'),
-          api.get('/teacher/students')
-        ]);
-        setExams(examRes.success ? examRes.data : []);
-        setStudents(studentRes.success ? studentRes.data : []);
-      } catch (e) {
-        toast.error('Failed to load exams/students');
-        setExams([]);
-        setStudents([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filters.year, filters.semester]);
 
   const examById = useMemo(() => {
     const m = new Map();
@@ -127,6 +139,49 @@ export default function TeacherMarks() {
         breadcrumbs={[{ label: 'Dashboard', path: '/teacher' }, { label: 'Marks' }]}
       />
 
+      <div className="card p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="form-group">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Filter by Year</label>
+            <select
+              className="input-base"
+              value={filters.year}
+              onChange={(e) => {
+                setFilters((prev) => ({ ...prev, year: e.target.value, semester: '' }));
+                setSelectedExamId('');
+                setSelectedStudentId('');
+                setMarks({});
+              }}
+            >
+              <option value="">All Years</option>
+              {years.map((year) => (
+                <option key={year} value={year}>Year {year}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Filter by Semester</label>
+            <select
+              className="input-base"
+              value={filters.semester}
+              onChange={(e) => {
+                setFilters((prev) => ({ ...prev, semester: e.target.value }));
+                setSelectedExamId('');
+                setSelectedStudentId('');
+                setMarks({});
+              }}
+            >
+              <option value="">All Semesters</option>
+              {semesters
+                .filter((semester) => !filters.year || Math.ceil(semester / 2) === Number(filters.year))
+                .map((semester) => (
+                  <option key={semester} value={semester}>Semester {semester}</option>
+                ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {exams.length === 0 ? (
         <EmptyState icon="📝" title="No exams found" subtitle="Ask HOD to create an exam first" />
       ) : (
@@ -146,7 +201,14 @@ export default function TeacherMarks() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{exam.name}</p>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatDateTime(exam.date)} · {exam.subjects?.length || 0} subjects</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {formatDateTime(exam.date)} · {exam.subjects?.length || 0} subjects
+                          {(exam.targetYear || exam.targetSemester) && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 font-medium">
+                              {exam.targetYear ? `Y${exam.targetYear}` : ''} {exam.targetSemester ? `S${exam.targetSemester}` : ''}
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <div className={`w-2.5 h-2.5 rounded-full ${active ? 'bg-indigo-400' : 'bg-[var(--border)]'}`} />
                     </div>

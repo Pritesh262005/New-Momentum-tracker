@@ -11,6 +11,8 @@ const examSchema = new mongoose.Schema({
   department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
   date: { type: Date, required: true },
   subjects: { type: [examSubjectSchema], default: [] },
+  targetYear: { type: Number },
+  targetSemester: { type: Number },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });

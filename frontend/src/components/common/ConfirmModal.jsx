@@ -13,7 +13,11 @@ export default function ConfirmModal({
   loading = false
 }) {
   const handleClose = onClose || onCancel;
-  const icons = { default: 'âš ï¸', danger: 'ðŸ—‘ï¸', warning: 'âš ï¸' };
+  const icons = {
+    default: '\u26A0\uFE0F',
+    danger: '\u{1F5D1}\uFE0F',
+    warning: '\u26A0\uFE0F'
+  };
   const icon = icons[variant] || icons.default;
 
   return (

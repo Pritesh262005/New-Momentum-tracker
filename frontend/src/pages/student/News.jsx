@@ -55,7 +55,7 @@ export default function StudentNews() {
                   📰
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold mb-2">{item.title}</h3>
+                  <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>{item.title}</h3>
                   <p className="text-sm text-[var(--text-secondary)] mb-3">{item.content}</p>
                   <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
                     <span>By {item.author?.name}</span>

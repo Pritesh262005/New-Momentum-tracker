@@ -5,21 +5,46 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useToast } from '../../hooks/useToast';
 import api from '../../api/axios';
 
+const years = [1, 2, 3, 4];
+
 export default function HODAnalytics() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState(null);
+  const [year, setYear] = useState('');
+  const [analytics, setAnalytics] = useState({
+    totalTests: 0,
+    avgScore: 0,
+    passRate: 0,
+    completionRate: 0,
+    topPerformers: [],
+    subjectStats: []
+  });
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [year]);
 
   const fetchAnalytics = async () => {
     try {
-      const { data } = await api.get('/hod/analytics');
-      setAnalytics(data);
+      const response = await api.get('/hod/analytics', { params: { year } });
+      setAnalytics(response.data?.data || {
+        totalTests: 0,
+        avgScore: 0,
+        passRate: 0,
+        completionRate: 0,
+        topPerformers: [],
+        subjectStats: []
+      });
     } catch (error) {
       showToast('Failed to load analytics', 'error');
+      setAnalytics({
+        totalTests: 0,
+        avgScore: 0,
+        passRate: 0,
+        completionRate: 0,
+        topPerformers: [],
+        subjectStats: []
+      });
     } finally {
       setLoading(false);
     }
@@ -33,6 +58,12 @@ export default function HODAnalytics() {
         title="Analytics"
         subtitle="Department analytics and insights"
         breadcrumbs={[{ label: 'Dashboard', path: '/hod' }, { label: 'Analytics' }]}
+        actions={
+          <select className="input-base min-w-[180px]" value={year} onChange={(e) => setYear(e.target.value)}>
+            <option value="">All Years</option>
+            {years.map((item) => <option key={item} value={item}>Year {item}</option>)}
+          </select>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -46,7 +77,7 @@ export default function HODAnalytics() {
         <div className="card p-6">
           <h3 className="text-lg font-bold mb-4">Top Performers</h3>
           <div className="space-y-3">
-            {analytics?.topPerformers?.map((student, i) => (
+            {analytics.topPerformers.length > 0 ? analytics.topPerformers.map((student, i) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-base)]">
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-bold text-[var(--primary)]">#{i + 1}</span>
@@ -57,14 +88,14 @@ export default function HODAnalytics() {
                 </div>
                 <span className="font-bold text-[var(--primary)]">{student.avgScore}%</span>
               </div>
-            )) || <p className="text-sm text-[var(--text-secondary)]">No data available</p>}
+            )) : <p className="text-sm text-[var(--text-secondary)]">No data available</p>}
           </div>
         </div>
 
         <div className="card p-6">
           <h3 className="text-lg font-bold mb-4">Subject Performance</h3>
           <div className="space-y-3">
-            {analytics?.subjectStats?.map((subject, i) => (
+            {analytics.subjectStats.length > 0 ? analytics.subjectStats.map((subject, i) => (
               <div key={i} className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold">{subject.name}</span>
@@ -77,7 +108,7 @@ export default function HODAnalytics() {
                   />
                 </div>
               </div>
-            )) || <p className="text-sm text-[var(--text-secondary)]">No data available</p>}
+            )) : <p className="text-sm text-[var(--text-secondary)]">No data available</p>}
           </div>
         </div>
       </div>

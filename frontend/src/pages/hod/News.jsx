@@ -120,6 +120,7 @@ export default function HODNews() {
       {selectedDetail && <NewsDetail news={selectedDetail} onClose={() => setSelectedDetail(null)} />}
       {showDelete && (
         <ConfirmModal
+          isOpen={showDelete}
           title="Delete News"
           message={`Delete ${selected?.title}?`}
           variant="danger"

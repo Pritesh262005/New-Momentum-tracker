@@ -43,6 +43,13 @@ export default function StudentLeaderboard() {
     }
   };
 
+  const rankColor = (index) => {
+    if (index === 0) return '#eab308';
+    if (index === 1) return 'var(--text-secondary)';
+    if (index === 2) return '#f97316';
+    return 'var(--text-secondary)';
+  };
+
   if (loading) return <LoadingSpinner fullscreen />;
 
   return (
@@ -66,7 +73,7 @@ export default function StudentLeaderboard() {
           <div key={user._id || `${user.name}-${index}`} className="card p-6">
             <div className="flex items-center gap-6">
               <div className="text-center">
-                <div className={`text-3xl font-bold ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-orange-600' : 'text-[var(--text-secondary)]'}`}>
+                <div className="text-3xl font-bold" style={{ color: rankColor(index) }}>
                   #{index + 1}
                 </div>
               </div>
@@ -74,7 +81,7 @@ export default function StudentLeaderboard() {
               <Avatar name={user.name} size="lg" />
 
               <div className="flex-1">
-                <h3 className="text-lg font-bold">{user.name}</h3>
+                <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{user.name}</h3>
                 <p className="text-sm text-[var(--text-secondary)]">
                   {user.department?.name || user.class?.name || '—'}
                 </p>

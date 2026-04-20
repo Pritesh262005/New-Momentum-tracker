@@ -11,9 +11,9 @@ configureDns();
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ MongoDB Connected');
+    console.log('MongoDB Connected');
   } catch (error) {
-    console.error('❌ MongoDB Connection Error:', error.message);
+    console.error('MongoDB Connection Error:', error.message);
     process.exit(1);
   }
 };
@@ -27,12 +27,10 @@ const seedSampleData = async () => {
   try {
     await connectDB();
 
-    console.log('🗑️ Clearing existing data...');
     await User.deleteMany({});
     await Department.deleteMany({});
     await Subject.deleteMany({});
 
-    console.log('🏢 Creating 5 Departments...');
     const departments = await Department.insertMany([
       { name: 'Computer Science', code: 'CSE', description: 'Computer Science and Engineering' },
       { name: 'Electronics', code: 'ECE', description: 'Electronics and Communication Engineering' },
@@ -41,8 +39,7 @@ const seedSampleData = async () => {
       { name: 'Electrical', code: 'EE', description: 'Electrical Engineering' }
     ]);
 
-    console.log('👥 Creating Sample Users...');
-    const users = [
+    await User.insertMany([
       {
         name: 'Admin',
         email: 'admin@almts.com',
@@ -60,6 +57,12 @@ const seedSampleData = async () => {
         role: 'HOD',
         userId: 'HOD-CSE-001',
         department: departments[0]._id,
+        assignedYearGroups: [
+          { year: 1, semesters: [1, 2] },
+          { year: 2, semesters: [3, 4] },
+          { year: 3, semesters: [5, 6] },
+          { year: 4, semesters: [7, 8] }
+        ],
         isFirstLogin: false,
         isActive: true,
         isTempPassword: false
@@ -69,8 +72,9 @@ const seedSampleData = async () => {
         email: 'teacher1@almts.com',
         password: await hashPassword('Teacher@123'),
         role: 'TEACHER',
-        userId: 'TCH-1001',
+        userId: 'TCH-CSE-001',
         department: departments[0]._id,
+        assignedYearGroups: [{ year: 1, semesters: [1, 2] }, { year: 2, semesters: [3, 4] }],
         isFirstLogin: false,
         isActive: true,
         isTempPassword: false
@@ -80,8 +84,9 @@ const seedSampleData = async () => {
         email: 'teacher2@almts.com',
         password: await hashPassword('Teacher@123'),
         role: 'TEACHER',
-        userId: 'TCH-1002',
+        userId: 'TCH-ECE-001',
         department: departments[1]._id,
+        assignedYearGroups: [{ year: 3, semesters: [5, 6] }],
         isFirstLogin: false,
         isActive: true,
         isTempPassword: false
@@ -92,8 +97,10 @@ const seedSampleData = async () => {
         password: await hashPassword('Student@123'),
         role: 'STUDENT',
         userId: 'STU-001',
-        rollNumber: 'STU001',
+        rollNumber: 'CSE001',
         department: departments[0]._id,
+        year: 2,
+        semester: 3,
         isFirstLogin: false,
         isActive: true,
         isTempPassword: false
@@ -104,38 +111,36 @@ const seedSampleData = async () => {
         password: await hashPassword('Student@123'),
         role: 'STUDENT',
         userId: 'STU-002',
-        rollNumber: 'STU002',
+        rollNumber: 'CSE002',
         department: departments[0]._id,
+        year: 2,
+        semester: 4,
         isFirstLogin: false,
         isActive: true,
         isTempPassword: false
       }
-    ];
-
-    await User.insertMany(users);
-
-    console.log('📚 Creating Sample Subjects...');
-    await Subject.insertMany([
-      { name: 'Data Structures', code: 'CS201', department: departments[0]._id, description: 'Arrays, Trees, Graphs', credits: 4, semester: 3 },
-      { name: 'Algorithms', code: 'CS202', department: departments[0]._id, description: 'Sorting, Searching, DP', credits: 4, semester: 4 },
-      { name: 'Database Systems', code: 'CS301', department: departments[0]._id, description: 'SQL, NoSQL, Transactions', credits: 3, semester: 5 },
-      { name: 'Digital Electronics', code: 'EC101', department: departments[1]._id, description: 'Logic Gates, Circuits', credits: 3, semester: 2 },
-      { name: 'Signals & Systems', code: 'EC201', department: departments[1]._id, description: 'Fourier, Laplace', credits: 4, semester: 4 }
     ]);
 
-    console.log('✅ Sample data seeded successfully!');
-    console.log('\n📋 Login Credentials:');
+    await Subject.insertMany([
+      { name: 'Programming Fundamentals', code: 'CSE101', department: departments[0]._id, description: 'Intro to programming', credits: 4, year: 1, semester: 1 },
+      { name: 'Discrete Mathematics', code: 'CSE102', department: departments[0]._id, description: 'Logic and sets', credits: 3, year: 1, semester: 2 },
+      { name: 'Data Structures', code: 'CSE201', department: departments[0]._id, description: 'Arrays, trees, graphs', credits: 4, year: 2, semester: 3 },
+      { name: 'Algorithms', code: 'CSE202', department: departments[0]._id, description: 'Sorting, searching, DP', credits: 4, year: 2, semester: 4 },
+      { name: 'Database Systems', code: 'CSE301', department: departments[0]._id, description: 'SQL and transactions', credits: 3, year: 3, semester: 5 },
+      { name: 'Signals and Systems', code: 'ECE301', department: departments[1]._id, description: 'Signals, transforms, systems', credits: 4, year: 3, semester: 5 }
+    ]);
+
+    console.log('Sample data seeded successfully');
     console.log('Admin: admin@almts.com / Admin@123');
     console.log('HOD: hod.cse@almts.com / HOD@123');
     console.log('Teacher 1: teacher1@almts.com / Teacher@123');
     console.log('Teacher 2: teacher2@almts.com / Teacher@123');
     console.log('Student 1: arjun.mehta@student.almts.com / Student@123');
     console.log('Student 2: ananya.iyer@student.almts.com / Student@123');
-    console.log('\n💡 All accounts are active and ready to use!');
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Seeding error:', error);
+    console.error('Seeding error:', error);
     process.exit(1);
   }
 };

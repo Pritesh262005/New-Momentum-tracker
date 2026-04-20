@@ -93,7 +93,7 @@ export default function TeacherNews() {
                       Department Students
                     </span>
                     {item.commentsEnabled && (
-                      <span className="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs">
+                      <span className="px-2 py-1 rounded-full text-xs" style={{ background: 'rgba(34,197,94,0.14)', color: 'var(--success)' }}>
                         Comments On
                       </span>
                     )}
@@ -125,6 +125,7 @@ export default function TeacherNews() {
       {selectedDetail && <NewsDetail news={selectedDetail} onClose={() => setSelectedDetail(null)} />}
       {showDelete && (
         <ConfirmModal
+          isOpen={showDelete}
           title="Delete News"
           message={`Delete ${selected?.title}?`}
           variant="danger"
