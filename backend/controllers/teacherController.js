@@ -586,10 +586,7 @@ const deleteTest = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const attemptsCount = await MCQAttempt.countDocuments({ test: test._id, status: { $in: ['SUBMITTED', 'TIMED_OUT'] } });
-    if (attemptsCount > 0) {
-      return res.status(400).json({ success: false, message: 'Cannot delete a test that already has student attempts' });
-    }
+
 
     await MCQAttempt.deleteMany({ test: test._id });
     await test.deleteOne();
