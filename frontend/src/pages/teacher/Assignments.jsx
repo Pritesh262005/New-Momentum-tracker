@@ -456,30 +456,56 @@ function SubmissionsModal({ assignment, onClose }) {
           </button>
         </div>
 
+        {plagReport?.checkedAt && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 animate-in fade-in slide-in-from-top-4">
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Unique Submissions</h4>
+                <div className="text-2xl font-black text-emerald-700">
+                  {submissions.filter(s => !s.plagiarism?.suspicious).length} / {submissions.length}
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <Check size={20} className="text-emerald-600" />
+              </div>
+            </div>
+            <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Flagged for Review</h4>
+                <div className="text-2xl font-black text-rose-700">
+                  {submissions.filter(s => s.plagiarism?.suspicious).length}
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
+                <Users size={20} className="text-rose-600" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {plagReport?.pairs && plagReport.pairs.length > 0 && (
-          <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 animate-in fade-in slide-in-from-top-2">
+          <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 mb-4">
             <h4 className="text-xs font-black text-rose-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-              High Similarity Pairs Detected
+              Top Similarity Pairs
             </h4>
             <div className="space-y-2">
-              {plagReport.pairs.slice(0, 5).map((pair, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-4 text-xs bg-white/50 dark:bg-black/20 p-2 rounded-lg border border-rose-500/10">
-                  <div className="flex items-center gap-2 font-medium">
-                    <span className="text-[var(--text-primary)]">{pair.student1Name}</span>
-                    <span className="text-[var(--text-muted)]">↔</span>
-                    <span className="text-[var(--text-primary)]">{pair.student2Name}</span>
+              {plagReport.pairs.slice(0, 5).map((pair, idx) => {
+                const s1 = submissions.find(s => s._id === pair.aSubmissionId)?.student?.name || 'Student';
+                const s2 = submissions.find(s => s._id === pair.bSubmissionId)?.student?.name || 'Student';
+                return (
+                  <div key={idx} className="flex items-center justify-between gap-4 text-xs bg-white/50 dark:bg-black/20 p-2 rounded-lg border border-rose-500/10">
+                    <div className="flex items-center gap-2 font-medium">
+                      <span className="text-[var(--text-primary)]">{s1}</span>
+                      <span className="text-[var(--text-muted)]">↔</span>
+                      <span className="text-[var(--text-primary)]">{s2}</span>
+                    </div>
+                    <div className="font-black text-rose-600">
+                      {Math.round(pair.similarity * 100)}% Match
+                    </div>
                   </div>
-                  <div className="font-black text-rose-600">
-                    {Math.round(pair.similarity * 100)}% Match
-                  </div>
-                </div>
-              ))}
-              {plagReport.pairs.length > 5 && (
-                <p className="text-[10px] text-[var(--text-muted)] text-center pt-1">
-                  +{plagReport.pairs.length - 5} more suspicious pairs found
-                </p>
-              )}
+                );
+              })}
             </div>
           </div>
         )}
@@ -499,9 +525,13 @@ function SubmissionsModal({ assignment, onClose }) {
                       <div className={`px-2 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border ${
                         s.plagiarism.suspicious 
                           ? 'bg-rose-500/10 text-rose-600 border-rose-500/20' 
-                          : 'bg-green-500/10 text-green-600 border-green-500/20'
+                          : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                       }`}>
-                        Similarity: {Math.round((s.plagiarism.topSimilarity || 0) * 100)}%
+                        {s.plagiarism.suspicious 
+                          ? `Similarity: ${Math.round((s.plagiarism.topSimilarity || 0) * 100)}%` 
+                          : s.plagiarism.topSimilarity < 0.2 
+                            ? '✅ Unique Submission' 
+                            : `Similarity: ${Math.round((s.plagiarism.topSimilarity || 0) * 100)}%`}
                       </div>
                       {(s.plagiarism.matches || []).length > 0 && (
                         <button type="button" className="text-[10px] font-bold text-[var(--primary)] hover:underline" onClick={() => setShowMatchesFor(s)}>
