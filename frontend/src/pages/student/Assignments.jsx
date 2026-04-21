@@ -72,7 +72,7 @@ export default function StudentAssignments() {
             const status = a.submissionStatus || 'NOT_SUBMITTED';
             const badge =
               status === 'GRADED' ? { text: 'Graded', cls: 'badge badge-green' } :
-              status === 'RETURNED' ? { text: 'Returned', cls: 'badge badge-amber' } :
+              status === 'RETURNED' ? { text: '⚠️ Action Required: Resubmit', cls: 'badge badge-amber ring-2 ring-amber-500 ring-offset-2 animate-pulse font-black' } :
               status === 'SUBMITTED' ? { text: 'Submitted', cls: 'badge badge-cyan' } :
               { text: 'Not submitted', cls: 'badge badge-gray' };
 
@@ -110,7 +110,11 @@ export default function StudentAssignments() {
                     {a.assignmentFile?.filePath && <button className="btn-secondary" onClick={() => download(a)}>Download</button>}
                     <button className="btn-secondary" onClick={() => openDetail(a)}>Details</button>
                     {status === 'NOT_SUBMITTED' && <button className="btn-primary" onClick={() => openSubmit(a)}>Submit</button>}
-                    {status === 'RETURNED' && <button className="btn-primary" onClick={() => openSubmit(a)}>Resubmit</button>}
+                    {status === 'RETURNED' && (
+                      <button className="btn-primary bg-amber-600 hover:bg-amber-700 border-none px-6" onClick={() => openSubmit(a)}>
+                        Resubmit Now
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

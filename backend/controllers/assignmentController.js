@@ -324,6 +324,7 @@ exports.getStudentAssignments = async (req, res, next) => {
       department: dept,
       isPublished: true,
       $or: [
+        { _id: { $in: Array.from(new Set((await AssignmentSubmission.find({ student: req.user._id }).select('assignment')).map(s => s.assignment))) } },
         { class: { $exists: false }, targetYear: { $exists: false } },
         { class: null, targetYear: { $exists: false } },
         ...(req.user.class ? [{ class: req.user.class }] : [])
@@ -361,7 +362,13 @@ exports.getStudentAssignments = async (req, res, next) => {
         };
       }
 
-      return { ...base, submissionStatus: status, grade };
+      return { 
+        ...base, 
+        submissionStatus: status, 
+        grade,
+        extensionDate: submission?.extensionDate,
+        returnedAt: submission?.returnedAt
+      };
     }));
 
     res.json({ success: true, data: assignmentsWithStatus });
