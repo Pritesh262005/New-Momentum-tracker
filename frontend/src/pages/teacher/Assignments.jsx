@@ -179,6 +179,21 @@ function AssignmentModal({ assignment, onClose, onSuccess }) {
     allowLateSubmission: assignment?.allowLateSubmission ?? false,
     latePenaltyPercent: assignment?.latePenaltyPercent ?? 0
   });
+  const [subjects, setSubjects] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get('/teacher/subjects', {
+          params: { year: form.targetYear, semester: form.targetSemester }
+        });
+        const list = data?.success ? data.data : (data?.subjects || []);
+        setSubjects(Array.isArray(list) ? list : []);
+      } catch (e) {
+        setSubjects([]);
+      }
+    })();
+  }, [form.targetYear, form.targetSemester]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -234,7 +249,17 @@ function AssignmentModal({ assignment, onClose, onSuccess }) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="form-group">
             <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Subject</label>
-            <input className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} required />
+            <select
+              className="input"
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              required
+            >
+              <option value="">Select Subject</option>
+              {subjects.map((s) => (
+                <option key={s._id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
           </div>
           <div className="form-group">
             <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Target Year</label>

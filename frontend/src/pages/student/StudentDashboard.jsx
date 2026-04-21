@@ -69,7 +69,7 @@ const StudentDashboard = () => {
         breadcrumbs={['Dashboard']}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
         <StatCard icon="ML" label="Next Week" value={nextPred === null || nextPred === undefined ? 'N/A' : `${Math.round(nextPred * 100) / 100}%`} color={isAnomaly ? 'red' : 'violet'} sub={forecastSub} />
         <StatCard icon="📈" label="Momentum" value={`${dash?.momentum ?? 0}%`} color={grade.color === 'green' ? 'green' : grade.color === 'red' ? 'red' : 'amber'} sub={grade.label} />
         <StatCard icon="⭐" label="XP Points" value={dash?.xpPoints ?? 0} color="indigo" />
