@@ -435,14 +435,54 @@ function SubmissionsModal({ assignment, onClose }) {
   return (
     <Modal isOpen={true} onClose={onClose} title={`Submissions • ${assignment.title}`} size="lg" noPad>
       <div className="p-6 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs text-[var(--text-muted)]">
-            {plagReport?.checkedAt ? `Plagiarism checked: ${formatDateTime(plagReport.checkedAt)}` : 'Plagiarism not checked yet'}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border)]">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+              {plagReport?.checkedAt ? `Checked: ${formatDateTime(plagReport.checkedAt)}` : 'Not checked yet'}
+            </div>
+            {plagReport?.threshold && (
+              <div className="text-[10px] text-[var(--text-muted)] opacity-70">
+                Sensitivity Threshold: {Math.round(plagReport.threshold * 100)}%
+              </div>
+            )}
           </div>
-          <button className="btn-secondary btn-sm" disabled={plagLoading} onClick={runPlagiarism}>
-            {plagLoading ? 'Checking...' : 'Run Plagiarism Check'}
+          <button 
+            className={`btn-sm flex items-center gap-2 ${plagReport?.checkedAt ? 'btn-secondary' : 'btn-primary'}`}
+            disabled={plagLoading} 
+            onClick={runPlagiarism}
+          >
+            {plagLoading ? <LoadingSpinner size="xs" /> : '🔍'}
+            {plagLoading ? 'Analyzing...' : plagReport?.checkedAt ? 'Re-run Analysis' : 'Run Plagiarism Check'}
           </button>
         </div>
+
+        {plagReport?.pairs && plagReport.pairs.length > 0 && (
+          <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 animate-in fade-in slide-in-from-top-2">
+            <h4 className="text-xs font-black text-rose-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              High Similarity Pairs Detected
+            </h4>
+            <div className="space-y-2">
+              {plagReport.pairs.slice(0, 5).map((pair, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-4 text-xs bg-white/50 dark:bg-black/20 p-2 rounded-lg border border-rose-500/10">
+                  <div className="flex items-center gap-2 font-medium">
+                    <span className="text-[var(--text-primary)]">{pair.student1Name}</span>
+                    <span className="text-[var(--text-muted)]">↔</span>
+                    <span className="text-[var(--text-primary)]">{pair.student2Name}</span>
+                  </div>
+                  <div className="font-black text-rose-600">
+                    {Math.round(pair.similarity * 100)}% Match
+                  </div>
+                </div>
+              ))}
+              {plagReport.pairs.length > 5 && (
+                <p className="text-[10px] text-[var(--text-muted)] text-center pt-1">
+                  +{plagReport.pairs.length - 5} more suspicious pairs found
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {submissions.length === 0 ? (
           <EmptyState icon="📭" title="No submissions yet" subtitle="Students submissions will appear here" />
@@ -456,12 +496,16 @@ function SubmissionsModal({ assignment, onClose }) {
                   <div className="text-xs mt-1 text-[var(--text-muted)]">{s.isLate ? `Late by ${s.lateByHours || 0}h` : 'On time'}</div>
                   {s.plagiarism?.checkedAt && (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className={`badge badge-${s.plagiarism.suspicious ? 'red' : 'green'}`}>
-                        Similarity {Math.round((s.plagiarism.topSimilarity || 0) * 100)}%
-                      </span>
+                      <div className={`px-2 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border ${
+                        s.plagiarism.suspicious 
+                          ? 'bg-rose-500/10 text-rose-600 border-rose-500/20' 
+                          : 'bg-green-500/10 text-green-600 border-green-500/20'
+                      }`}>
+                        Similarity: {Math.round((s.plagiarism.topSimilarity || 0) * 100)}%
+                      </div>
                       {(s.plagiarism.matches || []).length > 0 && (
-                        <button type="button" className="btn-secondary btn-sm" onClick={() => setShowMatchesFor(s)}>
-                          View matches
+                        <button type="button" className="text-[10px] font-bold text-[var(--primary)] hover:underline" onClick={() => setShowMatchesFor(s)}>
+                          View {s.plagiarism.matches.length} Matches
                         </button>
                       )}
                     </div>
