@@ -663,7 +663,7 @@ exports.getMySubmission = async (req, res, next) => {
     const submission = await AssignmentSubmission.findOne({ assignment: req.params.id, student: req.user._id })
       .populate('assignment gradedBy', 'name');
 
-    if (!submission) return res.status(404).json({ success: false, message: 'No submission found' });
+    if (!submission) return res.json({ success: true, data: null });
 
     res.json({ success: true, data: submission });
   } catch (error) {

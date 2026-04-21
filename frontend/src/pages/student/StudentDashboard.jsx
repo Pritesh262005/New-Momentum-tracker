@@ -206,15 +206,15 @@ const MomentumDetailsModal = ({ isOpen, onClose }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="card p-4 bg-[var(--bg-base)]">
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Consistency</div>
-              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)[0]?.consistency || 0}%</div>
+              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)?.[0]?.consistency || 0}%</div>
             </div>
             <div className="card p-4 bg-[var(--bg-base)]">
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Improvement</div>
-              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)[0]?.improvement || 0}%</div>
+              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)?.[0]?.improvement || 0}%</div>
             </div>
             <div className="card p-4 bg-[var(--bg-base)]">
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Focus Score</div>
-              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)[0]?.focus || 0}%</div>
+              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)?.[0]?.focus || 0}%</div>
             </div>
           </div>
 

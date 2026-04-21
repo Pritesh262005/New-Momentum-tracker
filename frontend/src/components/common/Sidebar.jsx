@@ -114,7 +114,8 @@ export default function Sidebar() {
         { to: '/teacher/study-notes', icon: <BookOpen {...iconProps} />, label: 'Study Notes' },
         { to: '/teacher/chat', icon: <MessageSquare {...iconProps} />, label: 'Chat' },
         { to: '/teacher/news', icon: <Newspaper {...iconProps} />, label: 'News' },
-        { to: '/teacher/profile', icon: <User {...iconProps} />, label: 'Profile' }
+        { to: '/teacher/profile', icon: <User {...iconProps} />, label: 'Profile' },
+        { to: '/teacher/attendance', icon: <Users {...iconProps} />, label: 'Attendance' }
       ]}
     ],
     STUDENT: [
@@ -126,7 +127,8 @@ export default function Sidebar() {
         { to: '/student/results', icon: <BarChart3 {...iconProps} />, label: 'Results' },
         { to: '/student/assignments', icon: <Paperclip {...iconProps} />, label: 'Assignments' },
         { to: '/student/chat', icon: <MessageSquare {...iconProps} />, label: 'Chat' },
-        { to: '/student/news', icon: <Newspaper {...iconProps} />, label: 'News' }
+        { to: '/student/news', icon: <Newspaper {...iconProps} />, label: 'News' },
+        { to: '/student/attendance', icon: <ClipboardList {...iconProps} />, label: 'Attendance' }
       ]},
       { group: 'COMPETE', items: [
         { to: '/student/leaderboard', icon: <Trophy {...iconProps} />, label: 'Leaderboard' },

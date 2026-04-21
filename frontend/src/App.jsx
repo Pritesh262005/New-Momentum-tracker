@@ -29,6 +29,7 @@ import StudentNews from './pages/student/News';
 import StudentAssignments from './pages/student/Assignments';
 import StudentChat from './pages/student/Chat';
 import StudentSubjects from './pages/student/Subjects';
+import StudentAttendance from './pages/student/Attendance';
 
 import TeacherDashboard from './pages/teacher/Dashboard';
 import TeacherTests from './pages/teacher/Tests';
@@ -44,6 +45,7 @@ import TeacherAssignments from './pages/teacher/Assignments';
 import TeacherChat from './pages/teacher/Chat';
 import TeacherStudyNotes from './pages/teacher/StudyNotes';
 import TeacherLeaderboard from './pages/teacher/Leaderboard';
+import TeacherAttendance from './pages/teacher/Attendance';
 
 import HODDashboard from './pages/hod/Dashboard';
 import HODTeachers from './pages/hod/Teachers';
@@ -93,6 +95,7 @@ function App() {
                 <Route path="leaderboard" element={<StudentLeaderboard />} />
                 <Route path="profile" element={<StudentProfile />} />
                 <Route path="news" element={<StudentNews />} />
+                <Route path="attendance" element={<StudentAttendance />} />
               </Route>
 
               <Route path="/teacher" element={<ProtectedRoute><RoleRoute allowedRoles={['TEACHER']}><AppLayout /></RoleRoute></ProtectedRoute>}>
@@ -111,6 +114,7 @@ function App() {
                 <Route path="chat" element={<TeacherChat />} />
                 <Route path="news" element={<TeacherNews />} />
                 <Route path="profile" element={<TeacherProfile />} />
+                <Route path="attendance" element={<TeacherAttendance />} />
               </Route>
 
               <Route path="/hod" element={<ProtectedRoute><RoleRoute allowedRoles={['HOD']}><AppLayout /></RoleRoute></ProtectedRoute>}>

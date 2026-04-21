@@ -105,6 +105,7 @@ app.use('/api/rankings', require('./routes/rankings'));
 app.use('/api/exams', require('./routes/exams'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/ai-tutor', require('./routes/aiTutor'));
+app.use('/api/attendance', require('./routes/attendance'));
 
 // Health check
 app.get('/api/health', (req, res) => {
