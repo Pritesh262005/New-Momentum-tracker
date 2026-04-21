@@ -87,6 +87,23 @@ const StudentDashboard = () => {
         <StatCard icon="🧪" label="Upcoming Tests" value={dash?.upcomingTests?.length ?? 0} color="cyan" />
         <StatCard icon="🧾" label="Upcoming Exams" value={upcomingExams.length} color="violet" />
       </div>
+      
+      {dash?.returnedAssignments > 0 && (
+        <div className="card p-4 mb-6 bg-amber-500/10 border-amber-500/20 flex items-center justify-between animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600">
+              ⚠️
+            </div>
+            <div>
+              <div className="text-sm font-bold text-amber-800">{dash.returnedAssignments} Assignment(s) Returned</div>
+              <div className="text-xs text-amber-700">A teacher has requested revision. Please resubmit soon.</div>
+            </div>
+          </div>
+          <button onClick={() => navigate('/student/assignments')} className="btn-secondary btn-sm bg-white border-amber-500/30 text-amber-700 hover:bg-amber-50">
+            View & Resubmit
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card p-6 lg:col-span-1">

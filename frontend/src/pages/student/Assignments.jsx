@@ -129,6 +129,10 @@ export default function StudentAssignments() {
         <DetailModal
           assignment={selected}
           onClose={() => setShowDetail(false)}
+          onResubmit={() => {
+            setShowDetail(false);
+            setShowSubmit(true);
+          }}
         />
       )}
     </div>
@@ -191,7 +195,7 @@ function SubmitModal({ assignment, onClose, onSuccess }) {
   );
 }
 
-function DetailModal({ assignment, onClose }) {
+function DetailModal({ assignment, onClose, onResubmit }) {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [submission, setSubmission] = useState(null);
@@ -261,6 +265,18 @@ function DetailModal({ assignment, onClose }) {
               )}
               {submission.feedback && (
                 <div className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">Feedback: {submission.feedback}</div>
+              )}
+              {submission.status === 'RETURNED' && (
+                <div className="mt-4 pt-4 border-t border-[var(--border)] flex justify-end">
+                  <button 
+                    className="btn-primary" 
+                    onClick={() => {
+                      onResubmit();
+                    }}
+                  >
+                    Resubmit Now
+                  </button>
+                </div>
               )}
             </div>
           )}

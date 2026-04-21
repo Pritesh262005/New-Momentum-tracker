@@ -445,6 +445,10 @@ const getStudentDashboard = async (req, res, next) => {
     });
 
     const user = await User.findById(req.user._id);
+    const returnedCount = await AssignmentSubmission.countDocuments({
+      student: req.user._id,
+      status: 'RETURNED'
+    });
 
     res.json({
       success: true,
@@ -454,7 +458,8 @@ const getStudentDashboard = async (req, res, next) => {
         momentum: scoreDoc?.score || 0,
         momentumScore2,
         streak: user.currentStreak || 0,
-        xpPoints: user.xpPoints || 0
+        xpPoints: user.xpPoints || 0,
+        returnedAssignments: returnedCount
       }
     });
   } catch (error) {
