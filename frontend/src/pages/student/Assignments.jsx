@@ -93,6 +93,11 @@ export default function StudentAssignments() {
                       ) : null}
                       <span className="px-2 py-1 rounded-full bg-[var(--bg-base)] border border-[var(--border)]">Due {formatDateTime(a.dueDate)}</span>
                       <span className={badge.cls}>{badge.text}</span>
+                      {status === 'RETURNED' && a.extensionDate && (
+                        <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-bold animate-pulse">
+                          Extension: {formatDateTime(a.extensionDate)}
+                        </span>
+                      )}
                       {a.grade && (
                         <span className={`px-2 py-1 rounded-full badge badge-${grade?.color || 'gray'}`}>
                           {a.grade.percentage?.toFixed ? a.grade.percentage.toFixed(2) : a.grade.percentage}% ({grade?.label})
@@ -253,6 +258,11 @@ function DetailModal({ assignment, onClose, onResubmit }) {
                 </button>
               </div>
               <div className="text-xs text-[var(--text-muted)]">Status: {submission.status}</div>
+              {submission.status === 'RETURNED' && submission.extensionDate && (
+                <div className="text-xs text-amber-600 font-bold">
+                  Resubmit by: {formatDateTime(submission.extensionDate)} (1-day extension granted)
+                </div>
+              )}
               {submission.autoGrade?.status && submission.autoGrade.status !== 'NOT_RUN' && (
                 <div className="text-sm text-[var(--text-secondary)]">
                   Auto grade: <span className="font-semibold text-[var(--text-primary)]">{submission.autoGrade.percentage ?? 0}%</span> ({submission.autoGrade.summary || submission.autoGrade.status})

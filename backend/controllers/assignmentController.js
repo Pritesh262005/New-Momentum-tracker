@@ -479,13 +479,25 @@ exports.resubmitAssignment = [submissionUpload.single('submissionFile'), async (
       fs.unlinkSync(submission.submissionFile.filePath);
     }
 
+    const now = new Date();
+    const effectiveDueDate = submission.extensionDate || assignment.dueDate;
+    const isLate = now > new Date(effectiveDueDate);
+
+    if (isLate && !assignment.allowLateSubmission) {
+      return res.status(403).json({ success: false, message: 'Extension deadline passed' });
+    }
+
+    const lateByHours = isLate ? Math.floor((now - new Date(effectiveDueDate)) / (1000 * 60 * 60)) : 0;
+
     submission.submissionFile = {
       fileName: req.file.originalname,
       filePath: req.file.path,
       fileSize: req.file.size,
-      uploadedAt: new Date()
+      uploadedAt: now
     };
     submission.status = 'SUBMITTED';
+    submission.isLate = isLate;
+    submission.lateByHours = lateByHours;
     submission.grade = null;
     submission.finalGrade = null;
     submission.feedback = null;
@@ -667,7 +679,14 @@ exports.gradeSubmission = async (req, res, next) => {
     submission.status = returnForRevision ? 'RETURNED' : 'GRADED';
     submission.gradedBy = req.user._id;
     submission.gradedAt = new Date();
-    if (returnForRevision) submission.returnedAt = new Date();
+    
+    if (returnForRevision) {
+      submission.returnedAt = new Date();
+      // Grant 1 day extension from now
+      const ext = new Date();
+      ext.setHours(ext.getHours() + 24);
+      submission.extensionDate = ext;
+    }
 
     await submission.save();
     res.json({ success: true, data: submission });

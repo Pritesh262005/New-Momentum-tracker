@@ -57,7 +57,8 @@ const assignmentSubmissionSchema = new mongoose.Schema({
   },
   gradedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   gradedAt: { type: Date },
-  returnedAt: { type: Date }
+  returnedAt: { type: Date },
+  extensionDate: { type: Date }
 }, { timestamps: true });
 
 assignmentSubmissionSchema.index({ assignment: 1, student: 1 }, { unique: true });
