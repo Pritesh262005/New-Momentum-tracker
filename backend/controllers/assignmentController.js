@@ -4,6 +4,8 @@ const fs = require('fs');
 const Assignment = require('../models/Assignment');
 const AssignmentSubmission = require('../models/AssignmentSubmission');
 const { computePlagiarismReport } = require('../services/plagiarismService');
+const { analyzeGrammar } = require('../services/grammarService');
+const { extractTextFromPdf } = require('../services/pdfTextExtractService');
 const { runCodeJsAutograde } = require('../services/codeAutogradeService');
 
 const semesterToYear = (semester) => {
@@ -548,9 +550,22 @@ exports.getPlagiarismReport = async (req, res, next) => {
     const report = await computePlagiarismReport({ submissions, threshold, topK });
 
     const checkedAt = new Date();
-    const updates = submissions.map((s) => {
+    
+    // Also perform grammar analysis for each submission
+    const updates = await Promise.all(submissions.map(async (s) => {
       const entry = report.bySubmission[String(s._id)];
       if (!entry) return null;
+
+      let grammarResult = { score: 0, summary: 'Check not run', details: [] };
+      try {
+        if (s.submissionFile?.filePath) {
+          const text = await extractTextFromPdf(s.submissionFile.filePath);
+          grammarResult = await analyzeGrammar(text);
+        }
+      } catch (e) {
+        console.error('Grammar analysis failed for submission:', s._id, e.message);
+      }
+
       return {
         updateOne: {
           filter: { _id: s._id },
@@ -567,14 +582,17 @@ exports.getPlagiarismReport = async (req, res, next) => {
                   studentName: m.studentName,
                   similarity: m.similarity
                 }))
-              }
+              },
+              grammar: grammarResult
             }
           }
         }
       };
-    }).filter(Boolean);
+    }));
+    
+    const validUpdates = updates.filter(Boolean);
 
-    if (updates.length > 0) await AssignmentSubmission.bulkWrite(updates);
+    if (validUpdates.length > 0) await AssignmentSubmission.bulkWrite(validUpdates);
 
     res.json({
       success: true,

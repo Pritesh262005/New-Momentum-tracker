@@ -34,6 +34,11 @@ const assignmentSubmissionSchema = new mongoose.Schema({
       similarity: { type: Number }
     }]
   },
+  grammar: {
+    score: { type: Number },
+    summary: { type: String },
+    details: [String]
+  },
   autoGrade: {
     status: { type: String, enum: ['NOT_RUN', 'PASSED', 'FAILED', 'ERROR'], default: 'NOT_RUN' },
     ranAt: { type: Date },

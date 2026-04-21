@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Check, Users } from 'lucide-react';
 import PageHeader from '../../components/common/PageHeader';
 import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
@@ -541,13 +542,42 @@ function SubmissionsModal({ assignment, onClose }) {
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <button className="btn-secondary btn-sm" onClick={() => downloadSubmission(s)}>{String(s.submissionFile?.fileName || '').toLowerCase().endsWith('.js') ? 'File' : 'PDF'}</button>
-                  <button className="btn-primary btn-sm" onClick={() => setGradeTarget(s)}>
-                    {s.status === 'GRADED' ? 'Update Grade' : 'Grade'}
-                  </button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button className="btn-secondary btn-sm" onClick={() => downloadSubmission(s)}>{String(s.submissionFile?.fileName || '').toLowerCase().endsWith('.js') ? 'File' : 'PDF'}</button>
+                    <button className="btn-primary btn-sm" onClick={() => setGradeTarget(s)}>
+                      {s.status === 'GRADED' ? 'Update Grade' : 'Grade'}
+                    </button>
+                  </div>
+                  {(s.plagiarism?.suspicious || (s.grammar?.score !== undefined && s.grammar.score < 50)) && (
+                    <button 
+                      className="text-[10px] font-bold text-rose-500 hover:text-rose-600 flex items-center justify-center gap-1 py-1 rounded bg-rose-500/5 border border-rose-500/10 transition-colors"
+                      onClick={() => {
+                        setGradeTarget(s);
+                        // We'll pass a hint to GradeModal via a local state or just let the teacher fill it
+                      }}
+                    >
+                      ⚠️ Request Resubmission
+                    </button>
+                  )}
                 </div>
               </div>
+              {s.grammar?.score !== undefined && (
+                <div className="mt-2 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Grammar Analysis</span>
+                    <span className={`text-xs font-bold ${s.grammar.score < 60 ? 'text-rose-500' : 'text-indigo-600'}`}>
+                      {s.grammar.score}/100
+                    </span>
+                  </div>
+                  <div className="text-xs text-[var(--text-secondary)] italic mb-1">"{s.grammar.summary}"</div>
+                  {s.grammar.details?.length > 0 && (
+                    <ul className="text-[10px] text-[var(--text-muted)] list-disc pl-4 space-y-0.5">
+                      {s.grammar.details.slice(0, 2).map((d, i) => <li key={i}>{d}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
               {s.autoGrade?.status && s.autoGrade.status !== 'NOT_RUN' && (
                 <div className="mt-3 text-sm text-[var(--text-secondary)]">
                   Auto grade: <span className="font-semibold text-[var(--text-primary)]">{s.autoGrade.percentage ?? 0}%</span> ({s.autoGrade.summary || s.autoGrade.status})
@@ -617,8 +647,12 @@ function GradeModal({ submission, totalMarks, onClose, onSaved }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [grade, setGrade] = useState(submission.grade ?? submission.finalGrade ?? 0);
-  const [feedback, setFeedback] = useState(submission.feedback || '');
-  const [returnForRevision, setReturnForRevision] = useState(false);
+  const [feedback, setFeedback] = useState(submission.feedback || (
+    (submission.plagiarism?.suspicious || (submission.grammar?.score !== undefined && submission.grammar.score < 50))
+      ? "Your submission has low scores in originality/grammar. Please review the feedback and resubmit a new version."
+      : ""
+  ));
+  const [returnForRevision, setReturnForRevision] = useState(submission.plagiarism?.suspicious || (submission.grammar?.score !== undefined && submission.grammar.score < 50));
 
   const submit = async (e) => {
     e.preventDefault();
