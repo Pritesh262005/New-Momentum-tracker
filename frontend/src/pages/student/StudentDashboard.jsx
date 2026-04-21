@@ -8,6 +8,8 @@ import { useToast } from '../../hooks/useToast';
 import { formatDateTime, getGrade } from '../../utils/formatters';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import Modal from '../../components/common/Modal';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dash, setDash] = useState(null);
   const [exams, setExams] = useState([]);
+  const [showMomentumModal, setShowMomentumModal] = useState(false);
 
   const upcomingExams = useMemo(() => {
     const now = new Date();
@@ -69,9 +72,16 @@ const StudentDashboard = () => {
         breadcrumbs={['Dashboard']}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 mb-8">
         <StatCard icon="ML" label="Next Week" value={nextPred === null || nextPred === undefined ? 'N/A' : `${Math.round(nextPred * 100) / 100}%`} color={isAnomaly ? 'red' : 'violet'} sub={forecastSub} />
-        <StatCard icon="📈" label="Momentum" value={`${dash?.momentum ?? 0}%`} color={grade.color === 'green' ? 'green' : grade.color === 'red' ? 'red' : 'amber'} sub={grade.label} />
+        <StatCard 
+          icon="📈" 
+          label="Momentum" 
+          value={`${dash?.momentum ?? 0}%`} 
+          color={grade.color === 'green' ? 'green' : grade.color === 'red' ? 'red' : 'amber'} 
+          sub="View Details"
+          onClick={() => setShowMomentumModal(true)}
+        />
         <StatCard icon="⭐" label="XP Points" value={dash?.xpPoints ?? 0} color="indigo" />
         <StatCard icon="🔥" label="Streak" value={`${dash?.streak ?? 0} days`} color="rose" />
         <StatCard icon="🧪" label="Upcoming Tests" value={dash?.upcomingTests?.length ?? 0} color="cyan" />
@@ -158,7 +168,132 @@ const StudentDashboard = () => {
           </div>
         </div>
       </div>
+      <MomentumDetailsModal isOpen={showMomentumModal} onClose={() => setShowMomentumModal(false)} />
     </div>
+  );
+};
+
+const MomentumDetailsModal = ({ isOpen, onClose }) => {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      (async () => {
+        try {
+          const { data: d } = await api.get('/student/momentum-details');
+          setData(d?.data || {});
+        } catch (err) {
+          console.error('Failed to load momentum details', err);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const chartData = data?.momentumHistory?.map(h => ({
+    date: new Date(h.weekStart).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    score: h.score
+  })) || [];
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Momentum Score Analysis" size="xl">
+      {loading ? <LoadingSpinner /> : (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="card p-4 bg-[var(--bg-base)]">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Consistency</div>
+              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)[0]?.consistency || 0}%</div>
+            </div>
+            <div className="card p-4 bg-[var(--bg-base)]">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Improvement</div>
+              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)[0]?.improvement || 0}%</div>
+            </div>
+            <div className="card p-4 bg-[var(--bg-base)]">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">Focus Score</div>
+              <div className="text-2xl font-bold">{data?.momentumHistory?.slice(-1)[0]?.focus || 0}%</div>
+            </div>
+          </div>
+
+          <div className="card p-6 bg-[var(--bg-base)]">
+            <h4 className="text-sm font-bold mb-6 text-[var(--text-primary)]">Learning Momentum Trend</h4>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px' }}
+                    itemStyle={{ color: 'var(--primary)' }}
+                  />
+                  <Area type="monotone" dataKey="score" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-[var(--text-primary)]">Recent MCQ & Assignment Performance</h4>
+              <div className="space-y-3">
+                {[...(data?.mcqHistory || []), ...(data?.assignmentHistory || [])]
+                  .sort((a, b) => new Date(b.date) - new Date(a.date))
+                  .slice(0, 6)
+                  .map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)]">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold truncate">{item.title}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{new Date(item.date).toLocaleDateString()}</div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-sm font-bold text-[var(--primary)]">{Math.round(item.percentage)}%</div>
+                        <div className="text-[10px] text-[var(--text-muted)]">{item.score}/{item.maxScore}</div>
+                      </div>
+                    </div>
+                  ))
+                }
+                {(!data?.mcqHistory?.length && !data?.assignmentHistory?.length) && (
+                  <div className="text-sm text-[var(--text-muted)] text-center py-4">No recent scores found</div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-[var(--text-primary)]">Exam Results</h4>
+              <div className="space-y-3">
+                {(data?.examHistory || []).map((exam, idx) => (
+                  <div key={idx} className="p-4 rounded-xl border-l-4 border-l-[var(--primary)] bg-[var(--bg-card)] border border-[var(--border)]">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-sm font-bold">{exam.title}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{new Date(exam.date).toLocaleDateString()}</div>
+                      </div>
+                      <div className="text-lg font-black text-[var(--primary)]">{Math.round(exam.percentage)}%</div>
+                    </div>
+                    <div className="mt-2 h-1.5 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--primary)] transition-all duration-500" style={{ width: `${exam.percentage}%` }} />
+                    </div>
+                  </div>
+                ))}
+                {!data?.examHistory?.length && (
+                  <div className="text-sm text-[var(--text-muted)] text-center py-4">No exam results found</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 };
 

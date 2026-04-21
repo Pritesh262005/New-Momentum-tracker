@@ -14,7 +14,8 @@ const {
   getLeaderboard,
   getStudentDashboard,
   getStudentTests,
-  getStudentResults
+  getStudentResults,
+  getMomentumDetails
 } = require('../controllers/studentController');
 
 const studyController = require('../controllers/studyController');
@@ -23,6 +24,7 @@ router.use(auth);
 router.use(roleCheck('STUDENT'));
 
 router.get('/dashboard', getStudentDashboard);
+router.get('/momentum-details', getMomentumDetails);
 router.get('/tests', getStudentTests);
 router.get('/results', getStudentResults);
 

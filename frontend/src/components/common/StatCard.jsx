@@ -13,16 +13,16 @@ export default function StatCard({ icon, value, label, title, sub, color = 'indi
 
   return (
     <div
-      className={`card p-6 transition-all duration-300 ${onClick ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : ''} border-l-4`}
+      className={`card p-4 transition-all duration-300 ${onClick ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : ''} border-l-4`}
       style={{ borderLeftColor: color === 'indigo' ? '#6366f1' : color === 'cyan' ? '#06b6d4' : color === 'green' ? '#10b981' : color === 'amber' ? '#f59e0b' : color === 'red' ? '#ef4444' : color === 'violet' ? '#8b5cf6' : '#f43f5e' }}
       onClick={onClick}
     >
-      <div className="flex items-start gap-4">
-        <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 bg-gradient-to-br ${cfg.from} ${cfg.to} transition-transform hover:scale-110`}>
+      <div className="flex items-start gap-3">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-gradient-to-br ${cfg.from} ${cfg.to} transition-transform hover:scale-110`}>
           <span>{icon}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{value}</div>
+          <div className="text-xl md:text-2xl font-bold truncate" style={{ color: 'var(--text-primary)' }}>{value}</div>
           <div className="text-xs font-semibold uppercase tracking-wide mt-1" style={{ color: 'var(--text-muted)' }}>
             {label ?? title}
           </div>

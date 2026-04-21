@@ -11,6 +11,9 @@ const gamificationService = require('../services/gamificationService');
 const { calculateMomentumScore } = require('../services/momentumService');
 const { computeMomentumScore2 } = require('../services/momentumScore2Service');
 const { analyzeStudyLogs } = require('../services/studySessionAnalyzerService');
+const AssignmentSubmission = require('../models/AssignmentSubmission');
+const ExamResult = require('../models/ExamResult');
+const Exam = require('../models/Exam');
 
 const semesterToYear = (semester) => Math.ceil(Number(semester) / 2);
 const buildStudentAcademicVisibility = (user) => ({
@@ -566,6 +569,77 @@ const getStudentResults = async (req, res, next) => {
   }
 };
 
+const getMomentumDetails = async (req, res, next) => {
+  try {
+    const studentId = req.user._id;
+
+    // 1. Momentum History (last 12 records)
+    const momentumHistory = await MomentumScore.find({ student: studentId })
+      .sort({ weekStart: -1 })
+      .limit(12)
+      .lean();
+
+    // 2. Recent MCQ Attempts (submitted)
+    const mcqHistory = await MCQAttempt.find({
+      student: studentId,
+      status: { $in: ['SUBMITTED', 'TIMED_OUT'] }
+    })
+      .populate('test', 'title totalMarks')
+      .sort({ submittedAt: -1 })
+      .limit(10)
+      .lean();
+
+    // 3. Recent Assignment Submissions (graded)
+    const assignmentHistory = await AssignmentSubmission.find({
+      student: studentId,
+      status: 'GRADED'
+    })
+      .populate('assignment', 'title totalMarks')
+      .sort({ gradedAt: -1 })
+      .limit(10)
+      .lean();
+
+    // 4. Recent Exam Results
+    const examHistory = await ExamResult.find({
+      student: studentId
+    })
+      .populate('exam', 'name date')
+      .sort({ examDate: -1 })
+      .limit(5)
+      .lean();
+
+    res.json({
+      success: true,
+      data: {
+        momentumHistory: (momentumHistory || []).reverse(),
+        mcqHistory: mcqHistory.map(h => ({
+          title: h.test?.title || 'MCQ Test',
+          score: h.totalScore,
+          maxScore: h.test?.totalMarks,
+          percentage: h.percentage,
+          date: h.submittedAt
+        })),
+        assignmentHistory: assignmentHistory.map(h => ({
+          title: h.assignment?.title || 'Assignment',
+          score: h.finalGrade || h.grade,
+          maxScore: h.assignment?.totalMarks,
+          percentage: h.percentage,
+          date: h.gradedAt
+        })),
+        examHistory: examHistory.map(h => ({
+          title: h.exam?.name || 'Exam',
+          score: h.totalMarks,
+          maxScore: h.totalMaxMarks,
+          percentage: h.avg,
+          date: h.examDate
+        }))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createStudyLog,
   getStudyLogs,
@@ -578,5 +652,6 @@ module.exports = {
   getLeaderboard,
   getStudentDashboard,
   getStudentTests,
-  getStudentResults
+  getStudentResults,
+  getMomentumDetails
 };
