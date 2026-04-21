@@ -17,7 +17,7 @@ export default function AdminAnalytics() {
   const fetchAnalytics = async () => {
     try {
       const { data } = await api.get('/admin/analytics');
-      setAnalytics(data);
+      setAnalytics(data.data || data);
     } catch (error) {
       toast.error('Failed to load analytics');
     } finally {

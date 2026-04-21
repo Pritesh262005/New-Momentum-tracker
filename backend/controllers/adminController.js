@@ -4,6 +4,8 @@ const Department = require('../models/Department');
 const Class = require('../models/Class');
 const AuditLog = require('../models/AuditLog');
 const Subject = require('../models/Subject');
+const MCQTest = require('../models/MCQTest');
+const MCQAttempt = require('../models/MCQAttempt');
 const generateTempPassword = require('../utils/generateTempPassword');
 const auditLogger = require('../utils/auditLogger');
 const { sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
@@ -413,10 +415,11 @@ const getAdminDashboard = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments({ isActive: true });
     const totalStudents = await User.countDocuments({ role: 'STUDENT', isActive: true });
-    const totalProfessors = await User.countDocuments({ role: 'PROFESSOR', isActive: true });
+    const totalTeachers = await User.countDocuments({ role: 'TEACHER', isActive: true });
     const totalHODs = await User.countDocuments({ role: 'HOD', isActive: true });
     const totalDepartments = await Department.countDocuments();
     const totalClasses = await Class.countDocuments();
+    const totalTests = await MCQTest.countDocuments();
 
     const recentAuditLogs = await AuditLog.find()
       .populate('performedBy', 'name email role')
@@ -428,10 +431,12 @@ const getAdminDashboard = async (req, res, next) => {
       data: {
         totalUsers,
         totalStudents,
-        totalProfessors,
+        totalTeachers,
+        totalProfessors: totalTeachers,
         totalHODs,
         totalDepartments,
         totalClasses,
+        totalTests,
         recentAuditLogs
       }
     });
@@ -471,13 +476,113 @@ const getAuditLogs = async (req, res, next) => {
 
 const getAnalytics = async (req, res, next) => {
   try {
+    const totalTests = await MCQTest.countDocuments();
+    const activeUsers = await User.countDocuments({ isActive: true });
+
+    // Aggregate for average score and completion rate
+    const stats = await MCQAttempt.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgScore: { $avg: '$percentage' },
+          totalAttempts: { $sum: 1 },
+          completedAttempts: {
+            $sum: {
+              $cond: [{ $in: ['$status', ['SUBMITTED', 'TIMED_OUT']] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const completionRate = stats[0]?.totalAttempts
+      ? Math.round((stats[0].completedAttempts / stats[0].totalAttempts) * 100)
+      : 0;
+
+    // Top Performers (Students with highest average scores)
+    const topPerformersData = await MCQAttempt.aggregate([
+      { $match: { status: { $in: ['SUBMITTED', 'TIMED_OUT'] } } },
+      {
+        $group: {
+          _id: '$student',
+          avgScore: { $avg: '$percentage' }
+        }
+      },
+      { $sort: { avgScore: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'studentInfo'
+        }
+      },
+      { $unwind: '$studentInfo' },
+      {
+        $lookup: {
+          from: 'departments',
+          localField: 'studentInfo.department',
+          foreignField: '_id',
+          as: 'deptInfo'
+        }
+      },
+      { $unwind: { path: '$deptInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          name: '$studentInfo.name',
+          department: '$deptInfo.name',
+          score: { $round: ['$avgScore', 1] }
+        }
+      }
+    ]);
+
+    // Department Stats
+    const departmentStats = await MCQAttempt.aggregate([
+      { $match: { status: { $in: ['SUBMITTED', 'TIMED_OUT'] } } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'student',
+          foreignField: '_id',
+          as: 'studentInfo'
+        }
+      },
+      { $unwind: '$studentInfo' },
+      {
+        $group: {
+          _id: '$studentInfo.department',
+          avgScore: { $avg: '$percentage' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'departments',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'deptInfo'
+        }
+      },
+      { $unwind: '$deptInfo' },
+      {
+        $project: {
+          name: '$deptInfo.name',
+          avgScore: { $round: ['$avgScore', 1] }
+        }
+      },
+      { $sort: { avgScore: -1 } }
+    ]);
+
     res.json({
-      totalTests: 0,
-      avgScore: 0,
-      activeUsers: await User.countDocuments({ isActive: true }),
-      completionRate: 0,
-      topPerformers: [],
-      departmentStats: []
+      success: true,
+      data: {
+        totalTests,
+        avgScore: Math.round(stats[0]?.avgScore || 0),
+        activeUsers,
+        completionRate,
+        topPerformers: topPerformersData,
+        departmentStats
+      }
     });
   } catch (error) {
     next(error);
